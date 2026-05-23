@@ -95,21 +95,27 @@ leak risk.
 
 ---
 
-## Management UI: Server-Rendered Go Templates + Minimal JS
+## Management UI: Server-Rendered Go Templates + HTMX
 
-**Decision**: Go HTML templates served by the same binary, with vanilla JavaScript
-only where browser interactivity is unavoidable (OAuth2 popup flow, status polling).
+**Decision**: Go HTML templates served by the same binary, with HTMX for all
+partial-page interactions. No SPA framework, no npm, no build step.
 
-**Rationale**: The management UI has a small, well-defined surface: list servers,
-add/remove servers, view status, handle suggestions. A full SPA framework (React,
-Vue, Svelte) would add a build pipeline, NPM dependency surface, and separate
-deployment artifact — all in violation of the Simplicity principle. Go templates
-handle 95% of the UI; the 5% that needs JS (initiating OAuth2 browser redirect,
-polling upstream status) uses plain `fetch()` calls.
+**Rationale**: The management UI interactions (dismiss suggestion, add/remove server,
+auto-refresh status badges, inline form expansion) are exactly what HTMX is designed
+for. Go handlers return HTML fragments instead of JSON; HTMX swaps them into the
+page via HTML attributes (`hx-post`, `hx-delete`, `hx-swap`, `hx-trigger`). This
+removes the need for hand-rolled `fetch()` + DOM manipulation boilerplate while
+adding only one `<script src>` tag and no build tooling. HTMX v2 is 14KB minified,
+stable, and vendored as a static file — no runtime npm dependency.
 
-**Alternatives considered**: React + separate API — rejected (two deployments, build
-step, more moving parts). HTMX — considered but vanilla JS is sufficient for the
-small interactive surface and avoids another dependency.
+The one interaction HTMX does not handle is the OAuth2 upstream authorization flow
+(browser redirect to Notion, GitHub, etc.), which is a plain anchor link or
+`window.location.href` redirect — no custom JS needed.
+
+**Alternatives considered**: Vanilla JS `fetch()` calls — rejected because HTMX
+produces less code for the same interactions with no additional tooling cost. React
++ separate API — rejected (build pipeline, two deployments, violates Simplicity
+principle).
 
 ---
 

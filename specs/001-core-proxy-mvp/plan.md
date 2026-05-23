@@ -26,6 +26,7 @@ templates · `modelcontextprotocol/go-sdk` v1.5.0
 - `github.com/jackc/pgx/v5` — PostgreSQL driver
 - `cloud.google.com/go/kms` — credential encryption/decryption
 - Standard library `net/http`, `html/template` — HTTP server + management UI
+- HTMX v2 (vendored static file, 14KB) — partial-page UI interactions; no build step
 
 **Storage**:
 - Cloud SQL (PostgreSQL 16) — user accounts, upstream configs, catalog, suggestions
@@ -97,8 +98,8 @@ internal/
 └── upstream/            # Per-service upstream MCP client adapters
 
 web/
-├── templates/           # Go HTML templates for management UI
-└── static/              # CSS, minimal vanilla JS (OAuth2 redirect, status polling)
+├── templates/           # Go HTML templates (full pages + HTMX partial fragments)
+└── static/              # CSS, vendored htmx.min.js
 
 migrations/              # PostgreSQL schema migrations (numbered SQL files)
 
