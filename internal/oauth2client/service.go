@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"golang.org/x/oauth2"
+
 	"github.com/rayjohnson/mcp-proxy/internal/auth"
 	"github.com/rayjohnson/mcp-proxy/internal/kms"
 	"github.com/rayjohnson/mcp-proxy/internal/store"
@@ -15,6 +17,7 @@ import (
 type Service struct {
 	stateStore    *store.OAuth2StateStore
 	upstreamStore *store.UpstreamStore
+	catalogStore  *store.CatalogStore
 	kmsClient     *kms.Client
 	baseURL       string
 }
@@ -22,39 +25,60 @@ type Service struct {
 func NewService(
 	stateStore *store.OAuth2StateStore,
 	upstreamStore *store.UpstreamStore,
+	catalogStore *store.CatalogStore,
 	kmsClient *kms.Client,
 	baseURL string,
 ) *Service {
 	return &Service{
 		stateStore:    stateStore,
 		upstreamStore: upstreamStore,
+		catalogStore:  catalogStore,
 		kmsClient:     kmsClient,
 		baseURL:       baseURL,
 	}
 }
 
+// oauthConfig loads OAuth2 configuration from the admin-configured catalog entry.
+func (s *Service) oauthConfig(ctx context.Context, serverType string) (*oauth2.Config, *store.CatalogEntry, error) {
+	entry, err := s.catalogStore.GetCatalogEntryByServerType(ctx, serverType)
+	if err != nil {
+		return nil, nil, fmt.Errorf("catalog entry not found for %q: %w", serverType, err)
+	}
+	if entry.AuthType != "oauth2" || entry.OAuthClientID == nil || len(entry.EncryptedOAuthSecret) == 0 {
+		return nil, nil, fmt.Errorf("%s is not configured for OAuth2 in the catalog", serverType)
+	}
+
+	plainSecret, err := s.kmsClient.Decrypt(ctx, entry.EncryptedOAuthSecret)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decrypt oauth secret: %w", err)
+	}
+
+	adapter, err := upstream.GetAdapter(serverType)
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg := adapter.OAuth2Config(*entry.OAuthClientID, string(plainSecret), s.redirectURL(serverType))
+	if cfg == nil {
+		return nil, nil, fmt.Errorf("%s does not support OAuth2", serverType)
+	}
+	return cfg, entry, nil
+}
+
 // StartAuthFlow generates a state token, stores it, and returns the upstream
 // OAuth2 authorization URL for the user to visit in their browser.
 func (s *Service) StartAuthFlow(ctx context.Context, userID, serverType string) (string, error) {
-	adapter, err := upstream.GetAdapter(serverType)
+	cfg, _, err := s.oauthConfig(ctx, serverType)
 	if err != nil {
 		return "", fmt.Errorf("start auth flow: %w", err)
-	}
-
-	cfg := adapter.OAuth2Config(s.redirectURL(serverType))
-	if cfg == nil {
-		return "", fmt.Errorf("start auth flow: %s does not support OAuth2", serverType)
 	}
 
 	state, err := auth.GenerateSecureToken()
 	if err != nil {
 		return "", fmt.Errorf("generate state: %w", err)
 	}
-
 	if err := s.stateStore.CreateOAuth2State(ctx, userID, serverType, state); err != nil {
 		return "", fmt.Errorf("store oauth2 state: %w", err)
 	}
-
 	return cfg.AuthCodeURL(state), nil
 }
 
@@ -69,14 +93,9 @@ func (s *Service) HandleCallback(ctx context.Context, serverType, code, state st
 		return fmt.Errorf("state server_type mismatch")
 	}
 
-	adapter, err := upstream.GetAdapter(serverType)
+	cfg, entry, err := s.oauthConfig(ctx, serverType)
 	if err != nil {
 		return fmt.Errorf("handle callback: %w", err)
-	}
-
-	cfg := adapter.OAuth2Config(s.redirectURL(serverType))
-	if cfg == nil {
-		return fmt.Errorf("handle callback: %s does not support OAuth2", serverType)
 	}
 
 	token, err := cfg.Exchange(ctx, code)
@@ -84,29 +103,28 @@ func (s *Service) HandleCallback(ctx context.Context, serverType, code, state st
 		return fmt.Errorf("exchange code: %w", err)
 	}
 
-	credsJSON, err := json.Marshal(token)
+	credsJSON, err := json.Marshal(token) //nolint:gosec // intentionally marshaling token for KMS encryption
 	if err != nil {
 		return fmt.Errorf("marshal token: %w", err)
 	}
-
 	encrypted, err := s.kmsClient.Encrypt(ctx, credsJSON)
 	if err != nil {
 		return fmt.Errorf("encrypt token: %w", err)
 	}
 
-	// Check if there is an existing config to update, otherwise create one.
+	// Update existing config or create a new one.
 	existing, _ := s.upstreamStore.GetUpstreamConfigsByUserID(ctx, st.UserID)
 	for _, c := range existing {
 		if c.ServerType == serverType {
 			if err := s.upstreamStore.UpdateEncryptedCreds(ctx, c.ID, encrypted); err != nil {
 				return fmt.Errorf("update creds: %w", err)
 			}
-			return s.upstreamStore.UpdateUpstreamStatus(ctx, c.ID, "active")
+			return s.upstreamStore.UpdateUpstreamStatus(ctx, c.ID, "unreachable")
 		}
 	}
 
 	_, err = s.upstreamStore.CreateUpstreamConfig(ctx,
-		st.UserID, serverType, cfg.Endpoint.TokenURL, "oauth2", encrypted)
+		st.UserID, serverType, entry.ServerURL, "oauth2", encrypted)
 	return err
 }
 

@@ -11,6 +11,10 @@
 <body>
   <nav>
     <a href="/dashboard">Dashboard</a>
+    {{if .IsAdmin}}
+    <a href="/admin/catalog">Catalog</a>
+    <a href="/admin/users">Users</a>
+    {{end}}
     <form method="post" action="/api/auth/logout" style="display:inline">
       <button type="submit">Logout</button>
     </form>

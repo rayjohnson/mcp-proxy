@@ -7,16 +7,16 @@ import (
 
 	"github.com/rayjohnson/mcp-proxy/internal/kms"
 	"github.com/rayjohnson/mcp-proxy/internal/store"
-	"github.com/rayjohnson/mcp-proxy/internal/upstream"
 )
 
 type UpstreamHandler struct {
 	upstreamStore *store.UpstreamStore
+	catalogStore  *store.CatalogStore
 	kmsClient     *kms.Client
 }
 
-func NewUpstreamHandler(us *store.UpstreamStore, k *kms.Client) *UpstreamHandler {
-	return &UpstreamHandler{upstreamStore: us, kmsClient: k}
+func NewUpstreamHandler(us *store.UpstreamStore, cs *store.CatalogStore, k *kms.Client) *UpstreamHandler {
+	return &UpstreamHandler{upstreamStore: us, catalogStore: cs, kmsClient: k}
 }
 
 func (h *UpstreamHandler) ListUpstreams(w http.ResponseWriter, r *http.Request) {
@@ -54,52 +54,44 @@ func (h *UpstreamHandler) ListUpstreams(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(out) //nolint:errcheck
 }
 
-func (h *UpstreamHandler) AddUpstream(w http.ResponseWriter, r *http.Request) {
+// Connect handles POST /api/upstream/connect (catalog-driven, PRG).
+// The user supplies only their API key; URL and auth type come from the catalog.
+func (h *UpstreamHandler) Connect(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromContext(r.Context())
-	if claims == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/dashboard?error=Invalid+form.", http.StatusSeeOther)
 		return
 	}
-	var body struct {
-		ServerType string `json:"server_type"`
-		ServerURL  string `json:"server_url"`
-		APIKey     string `json:"api_key"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	if body.ServerType == "" || body.ServerURL == "" || body.APIKey == "" {
-		http.Error(w, "server_type, server_url, api_key are required", http.StatusBadRequest)
+	catalogID := r.FormValue("catalog_id")
+	apiKey := r.FormValue("api_key")
+	if catalogID == "" || apiKey == "" {
+		http.Redirect(w, r, "/dashboard?error=Missing+required+fields.", http.StatusSeeOther)
 		return
 	}
 
-	adapter, err := upstream.GetAdapter(body.ServerType)
+	entry, err := h.catalogStore.GetCatalogEntryByID(r.Context(), catalogID)
 	if err != nil {
-		http.Error(w, "unsupported server_type", http.StatusBadRequest)
+		http.Redirect(w, r, "/dashboard?error=Unknown+server.", http.StatusSeeOther)
 		return
 	}
-	if adapter.AuthType() != "api_key" {
-		http.Error(w, "use the OAuth2 flow for this server type", http.StatusBadRequest)
+	if entry.AuthType != "api_key" {
+		http.Redirect(w, r, "/dashboard?error=Use+OAuth+for+this+server.", http.StatusSeeOther)
 		return
 	}
 
-	encrypted, err := h.kmsClient.Encrypt(r.Context(), []byte(body.APIKey))
+	encrypted, err := h.kmsClient.Encrypt(r.Context(), []byte(apiKey))
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/connect/"+entry.ServerType+"?error=Internal+error.", http.StatusSeeOther) //nolint:gosec // serverType from catalog, not user input
 		return
 	}
 
-	cfg, err := h.upstreamStore.CreateUpstreamConfig(r.Context(),
-		claims.UserID, body.ServerType, body.ServerURL, "api_key", encrypted)
+	_, err = h.upstreamStore.CreateUpstreamConfig(r.Context(),
+		claims.UserID, entry.ServerType, entry.ServerURL, "api_key", encrypted)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Redirect(w, r, "/connect/"+entry.ServerType+"?error=Failed+to+connect.", http.StatusSeeOther) //nolint:gosec // serverType from catalog, not user input
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"id": cfg.ID}) //nolint:errcheck
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
 func (h *UpstreamHandler) DeleteUpstream(w http.ResponseWriter, r *http.Request) {
@@ -124,6 +116,26 @@ func (h *UpstreamHandler) DeleteUpstream(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Disconnect handles POST /api/upstream/{id}/disconnect (PRG form-based delete).
+func (h *UpstreamHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromContext(r.Context())
+	id := r.PathValue("id")
+	if id == "" {
+		http.Redirect(w, r, "/dashboard?error=Missing+ID.", http.StatusSeeOther)
+		return
+	}
+	cfg, err := h.upstreamStore.GetUpstreamConfigByID(r.Context(), id)
+	if err != nil || cfg.UserID != claims.UserID {
+		http.Redirect(w, r, "/dashboard?error=Not+found.", http.StatusSeeOther)
+		return
+	}
+	if err := h.upstreamStore.DeleteUpstreamConfig(r.Context(), id); err != nil {
+		http.Redirect(w, r, "/dashboard?error=Failed+to+remove.", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
 func (h *UpstreamHandler) UpdateCredentials(w http.ResponseWriter, r *http.Request) {

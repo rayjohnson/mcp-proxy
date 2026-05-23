@@ -19,18 +19,20 @@ func NewService(catalog *store.CatalogStore, suggestions *store.SuggestionStore)
 
 // AddToCatalog inserts a new catalog entry and fans out a pending suggestion
 // to every existing developer user in a single operation.
-func (s *Service) AddToCatalog(ctx context.Context, serverType, serverURL, displayName, description, addedBy string) (*store.CatalogEntry, error) {
-	entry, err := s.catalog.AddCatalogEntry(ctx, serverType, serverURL, displayName, description, addedBy)
+func (s *Service) AddToCatalog(ctx context.Context,
+	serverType, serverURL, displayName, description, addedBy, authType string,
+	oauthClientID *string, encryptedOAuthSecret []byte,
+) (*store.CatalogEntry, error) {
+	entry, err := s.catalog.AddCatalogEntry(ctx,
+		serverType, serverURL, displayName, description, addedBy,
+		authType, oauthClientID, encryptedOAuthSecret)
 	if err != nil {
 		return nil, fmt.Errorf("add to catalog: %w", err)
 	}
 
 	if err := s.suggestions.CreateSuggestionForAllUsers(ctx, entry.ID); err != nil {
-		// Log but don't fail — the catalog entry itself was created successfully.
-		// A background job can retry suggestion fan-out if needed.
 		return entry, fmt.Errorf("catalog entry created but suggestion fan-out failed: %w", err)
 	}
-
 	return entry, nil
 }
 

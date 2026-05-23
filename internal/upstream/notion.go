@@ -30,11 +30,13 @@ func (a *NotionAdapter) AuthHeader(decryptedCreds []byte) (string, error) {
 	return "Bearer " + creds.AccessToken, nil
 }
 
-func (a *NotionAdapter) OAuth2Config(redirectURL string) *oauth2.Config {
+func (a *NotionAdapter) OAuth2Config(clientID, clientSecret, redirectURL string) *oauth2.Config {
 	return &oauth2.Config{
-		Scopes:      []string{},
-		RedirectURL: redirectURL,
-		Endpoint: oauth2.Endpoint{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{},
+		RedirectURL:  redirectURL,
+		Endpoint: oauth2.Endpoint{ //nolint:gosec // well-known OAuth2 endpoint URLs
 			AuthURL:  "https://api.notion.com/v1/oauth/authorize",
 			TokenURL: "https://api.notion.com/v1/oauth/token",
 		},

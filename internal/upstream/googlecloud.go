@@ -27,11 +27,13 @@ func (a *GoogleCloudAdapter) AuthHeader(decryptedCreds []byte) (string, error) {
 	return "Bearer " + creds.AccessToken, nil
 }
 
-func (a *GoogleCloudAdapter) OAuth2Config(redirectURL string) *oauth2.Config {
+func (a *GoogleCloudAdapter) OAuth2Config(clientID, clientSecret, redirectURL string) *oauth2.Config {
 	return &oauth2.Config{
-		Scopes:      []string{"https://www.googleapis.com/auth/cloud-platform"},
-		Endpoint:    google.Endpoint,
-		RedirectURL: redirectURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"https://www.googleapis.com/auth/cloud-platform"},
+		Endpoint:     google.Endpoint,
+		RedirectURL:  redirectURL,
 	}
 }
 

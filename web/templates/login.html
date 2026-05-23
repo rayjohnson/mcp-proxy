@@ -3,14 +3,12 @@
 {{define "content"}}
 <div class="container auth-form">
   <h1>Sign In</h1>
-  <form hx-post="/api/auth/login"
-        hx-target="#error-msg"
-        hx-on::after-request="if(event.detail.successful) window.location='/dashboard'">
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="POST" action="/api/auth/login">
     <label>Email    <input type="email"    name="email"    required autofocus></label>
     <label>Password <input type="password" name="password" required></label>
     <button type="submit">Sign In</button>
   </form>
-  <p id="error-msg"></p>
   <p><a href="/register">Create an account</a></p>
 </div>
 {{end}}

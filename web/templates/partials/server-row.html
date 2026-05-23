@@ -1,7 +1,6 @@
 {{define "server-row"}}
 <tr id="server-row-{{.ID}}">
-  <td>{{.ServerType}}</td>
-  <td><a href="{{.ServerURL}}" target="_blank" rel="noopener">{{.ServerURL}}</a></td>
+  <td>{{.DisplayName}}</td>
   <td>
     <span class="status-badge status-{{.Status}}"
           hx-get="/api/upstream/{{.ID}}/status"
@@ -12,14 +11,12 @@
   </td>
   <td>
     {{if eq .Status "reauth_required"}}
-    <a href="/api/oauth2/authorize/{{.ServerType}}">Re-authorize</a>
+    <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Re-authorize</a>
     {{end}}
-    <button hx-delete="/api/upstream/{{.ID}}"
-            hx-target="#server-row-{{.ID}}"
-            hx-swap="outerHTML"
-            hx-confirm="Remove {{.ServerType}}?">
-      Remove
-    </button>
+    <form method="POST" action="/api/upstream/{{.ID}}/disconnect" style="display:inline"
+          onsubmit="return confirm('Remove {{.DisplayName}}?')">
+      <button type="submit" class="danger">Remove</button>
+    </form>
   </td>
 </tr>
 {{end}}

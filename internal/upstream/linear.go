@@ -19,11 +19,13 @@ func (a *LinearAdapter) AuthHeader(decryptedCreds []byte) (string, error) {
 	return "Bearer " + token, nil
 }
 
-func (a *LinearAdapter) OAuth2Config(redirectURL string) *oauth2.Config {
+func (a *LinearAdapter) OAuth2Config(clientID, clientSecret, redirectURL string) *oauth2.Config {
 	return &oauth2.Config{
-		Scopes:      []string{"read", "write"},
-		RedirectURL: redirectURL,
-		Endpoint: oauth2.Endpoint{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"read", "write"},
+		RedirectURL:  redirectURL,
+		Endpoint: oauth2.Endpoint{ //nolint:gosec // well-known OAuth2 endpoint URLs
 			AuthURL:  "https://linear.app/oauth/authorize",
 			TokenURL: "https://api.linear.app/oauth/token",
 		},

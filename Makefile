@@ -45,9 +45,9 @@ db-reset: check-docker
 run: build .env.local db-up
 	@set -a && . ./.env.local && set +a && ./$(BIN)
 
-.PHONY: vet
-vet:
-	go vet ./...
+.PHONY: lint
+lint:
+	golangci-lint run ./...
 
 .PHONY: clean
 clean:

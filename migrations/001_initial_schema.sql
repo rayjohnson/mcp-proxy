@@ -7,7 +7,7 @@ CREATE TABLE users (
     email         TEXT UNIQUE NOT NULL,
     password_hash TEXT,
     role          TEXT NOT NULL DEFAULT 'developer' CHECK (role IN ('developer', 'admin')),
-    proxy_token   TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'base64url'),
+    proxy_token   TEXT UNIQUE NOT NULL DEFAULT replace(replace(encode(gen_random_bytes(32), 'base64'), '+', '-'), '/', '_'),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

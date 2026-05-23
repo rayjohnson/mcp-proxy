@@ -11,7 +11,7 @@ func TestLocalKMSRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer c.Close()
+	defer c.Close() //nolint:errcheck
 
 	plaintext := []byte("super secret api key")
 
@@ -37,7 +37,7 @@ func TestLocalKMSDistinctCiphertexts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer c.Close()
+	defer c.Close() //nolint:errcheck
 
 	plaintext := []byte("same input")
 	ct1, _ := c.Encrypt(context.Background(), plaintext)
@@ -52,7 +52,7 @@ func TestLocalKMSBadCiphertext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	defer c.Close()
+	defer c.Close() //nolint:errcheck
 
 	_, err = c.Decrypt(context.Background(), []byte("too short"))
 	if err == nil {

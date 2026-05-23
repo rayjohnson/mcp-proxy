@@ -4,6 +4,8 @@
 <div class="container">
   <h1>Your MCP Proxy</h1>
 
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
   <section class="proxy-endpoint">
     <h2>Your Proxy Endpoint</h2>
     <p>Use this URL in your AI tools (Claude, Cursor, etc.):</p>
@@ -11,35 +13,45 @@
     <button onclick="navigator.clipboard.writeText('{{.ProxyURL}}')">Copy</button>
   </section>
 
-  {{if .Suggestions}}
-  <section class="suggestions">
-    <h2>New MCP Servers Available</h2>
-    <div id="suggestions-container">
-      {{template "suggestions-list" .Suggestions}}
+  {{if .Available}}
+  <section>
+    <h2>Available MCP Servers</h2>
+    <div class="catalog-grid">
+      {{range .Available}}
+      <div class="catalog-card">
+        <h3>{{.DisplayName}}</h3>
+        {{if .Description}}<p>{{.Description}}</p>{{end}}
+        {{if eq .AuthType "oauth2"}}
+        <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Connect</a>
+        {{else}}
+        <a href="/connect/{{.ServerType}}" class="button">Connect</a>
+        {{end}}
+      </div>
+      {{end}}
     </div>
   </section>
   {{end}}
 
-  <section class="servers">
-    <h2>Your MCP Servers</h2>
-
-    <div id="add-server-form-container">
-      {{template "add-server-form" .}}
-    </div>
-
+  {{if .Connected}}
+  <section>
+    <h2>Connected Servers</h2>
     <table>
       <thead>
-        <tr><th>Service</th><th>URL</th><th>Status</th><th>Actions</th></tr>
+        <tr><th>Server</th><th>Status</th><th>Actions</th></tr>
       </thead>
-      <tbody id="server-list"
-             hx-get="/api/upstream"
-             hx-trigger="every 30s"
-             hx-swap="innerHTML">
-        {{range .Upstreams}}
-          {{template "server-row" .}}
+      <tbody>
+        {{range .Connected}}
+        {{template "server-row" .}}
         {{end}}
       </tbody>
     </table>
   </section>
+  {{end}}
+
+  {{if and (eq (len .Available) 0) (eq (len .Connected) 0)}}
+  <section>
+    <p>No MCP servers are available yet. Ask your administrator to add servers to the catalog.</p>
+  </section>
+  {{end}}
 </div>
 {{end}}

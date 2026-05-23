@@ -115,3 +115,32 @@ th { background: #f1f3f5; font-weight: 600; }
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.catalog-card {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.catalog-card h3 { margin: 0; font-size: 1rem; }
+.catalog-card p  { color: #6c757d; font-size: 0.875rem; margin: 0; flex: 1; }
+.catalog-card .button { align-self: flex-start; margin-top: 0.5rem; }
+
+.admin-form { max-width: 540px; }
+.admin-form label { margin-bottom: 1rem; }
+
+.role-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+.role-admin     { background: #dbeafe; color: #1e40af; }
+.role-developer { background: #f3f4f6; color: #374151; }
+
+.hint { color: #6c757d; margin-bottom: 1rem; }
+.error { color: #dc3545; background: #fff5f5; border: 1px solid #f5c6cb; padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 1rem; }

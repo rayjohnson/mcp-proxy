@@ -32,7 +32,7 @@ func (h *OAuth2Handler) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, authURL, http.StatusFound)
+	http.Redirect(w, r, authURL, http.StatusFound) //nolint:gosec // authURL comes from oauth2.Config.AuthCodeURL, not user input
 }
 
 func (h *OAuth2Handler) Callback(w http.ResponseWriter, r *http.Request) {

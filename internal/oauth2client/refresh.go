@@ -10,7 +10,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/rayjohnson/mcp-proxy/internal/store"
-	"github.com/rayjohnson/mcp-proxy/internal/upstream"
 )
 
 // tokenCreds is the JSON structure stored in encrypted_creds for OAuth2 configs.
@@ -43,14 +42,9 @@ func (s *Service) RefreshIfExpired(ctx context.Context, cfg *store.UpstreamConfi
 		return nil
 	}
 
-	adapter, err := upstream.GetAdapter(cfg.ServerType)
+	oauth2cfg, _, err := s.oauthConfig(ctx, cfg.ServerType)
 	if err != nil {
 		return fmt.Errorf("refresh: %w", err)
-	}
-
-	oauth2cfg := adapter.OAuth2Config(s.redirectURL(cfg.ServerType))
-	if oauth2cfg == nil {
-		return fmt.Errorf("refresh: %s does not support OAuth2", cfg.ServerType)
 	}
 
 	oldToken := &oauth2.Token{
@@ -75,7 +69,7 @@ func (s *Service) RefreshIfExpired(ctx context.Context, cfg *store.UpstreamConfi
 		Expiry:       newToken.Expiry,
 	}
 
-	credsJSON, err := json.Marshal(updatedCreds)
+	credsJSON, err := json.Marshal(updatedCreds) //nolint:gosec // intentionally marshaling token for KMS encryption
 	if err != nil {
 		return fmt.Errorf("marshal refreshed creds: %w", err)
 	}

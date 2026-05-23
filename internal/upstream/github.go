@@ -20,11 +20,13 @@ func (a *GitHubAdapter) AuthHeader(decryptedCreds []byte) (string, error) {
 	return "Bearer " + token, nil
 }
 
-func (a *GitHubAdapter) OAuth2Config(redirectURL string) *oauth2.Config {
+func (a *GitHubAdapter) OAuth2Config(clientID, clientSecret, redirectURL string) *oauth2.Config {
 	return &oauth2.Config{
-		Scopes:      []string{"repo", "read:user"},
-		Endpoint:    github.Endpoint,
-		RedirectURL: redirectURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"repo", "read:user"},
+		Endpoint:     github.Endpoint,
+		RedirectURL:  redirectURL,
 	}
 }
 

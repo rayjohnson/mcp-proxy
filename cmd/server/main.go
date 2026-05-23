@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rayjohnson/mcp-proxy/internal/catalog"
@@ -26,6 +27,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := handler.InitTemplates("web/templates"); err != nil {
+		slog.Error("init templates", "err", err)
+		os.Exit(1)
+	}
+
 	pool, err := store.NewPool(ctx, cfg.DBDSN)
 	if err != nil {
 		slog.Error("connect db", "err", err)
@@ -38,7 +44,7 @@ func main() {
 		slog.Error("init kms", "err", err)
 		os.Exit(1)
 	}
-	defer kmsClient.Close()
+	defer func() { _ = kmsClient.Close() }()
 
 	// Stores
 	userStore := store.NewUserStore(pool)
@@ -49,13 +55,14 @@ func main() {
 
 	// Services
 	catalogSvc := catalog.NewService(catalogStore, suggestionStore)
-	oauth2Svc := oauth2client.NewService(oauth2StateStore, upstreamStore, kmsClient, cfg.BaseURL)
+	oauth2Svc := oauth2client.NewService(oauth2StateStore, upstreamStore, catalogStore, kmsClient, cfg.BaseURL)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(userStore, catalogStore, suggestionStore)
-	adminHandler := handler.NewAdminHandler(catalogSvc, catalogStore)
+	adminHandler := handler.NewAdminHandler(catalogSvc, catalogStore, userStore, kmsClient)
+	dashHandler := handler.NewDashboardHandler(userStore, upstreamStore, catalogStore, cfg.BaseURL)
 	suggestionHandler := handler.NewSuggestionHandler(suggestionStore)
-	upstreamHandler := handler.NewUpstreamHandler(upstreamStore, kmsClient)
+	upstreamHandler := handler.NewUpstreamHandler(upstreamStore, catalogStore, kmsClient)
 	oauth2Handler := handler.NewOAuth2Handler(oauth2Svc)
 
 	// MCP proxy
@@ -101,8 +108,10 @@ func main() {
 	// Upstream management API (authenticated)
 	mux.Handle("GET /api/upstream",
 		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.ListUpstreams)))
-	mux.Handle("POST /api/upstream",
-		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.AddUpstream)))
+	mux.Handle("POST /api/upstream/connect",
+		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.Connect)))
+	mux.Handle("POST /api/upstream/{id}/disconnect",
+		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.Disconnect)))
 	mux.Handle("DELETE /api/upstream/{id}",
 		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.DeleteUpstream)))
 	mux.Handle("PATCH /api/upstream/{id}/credentials",
@@ -123,35 +132,56 @@ func main() {
 	mux.Handle("POST /api/suggestions/{id}/accept",
 		handler.AuthMiddleware(http.HandlerFunc(suggestionHandler.AcceptSuggestion)))
 
-	// Admin API (admin role required)
+	// Admin pages and API (admin role required)
 	adminMW := func(h http.Handler) http.Handler {
 		return handler.AuthMiddleware(handler.AdminMiddleware(h))
 	}
-	mux.Handle("GET /api/admin/catalog",
-		adminMW(http.HandlerFunc(adminHandler.ListCatalog)))
-	mux.Handle("POST /api/admin/catalog",
+	mux.Handle("GET /admin/catalog",
+		adminMW(http.HandlerFunc(adminHandler.CatalogPage)))
+	mux.Handle("POST /admin/catalog",
 		adminMW(http.HandlerFunc(adminHandler.AddCatalogEntry)))
-	mux.Handle("DELETE /api/admin/catalog/{id}",
-		adminMW(http.HandlerFunc(adminHandler.DeleteCatalogEntry)))
+	mux.Handle("POST /admin/catalog/{id}/remove",
+		adminMW(http.HandlerFunc(adminHandler.RemoveCatalogEntry)))
+	mux.Handle("GET /admin/users",
+		adminMW(http.HandlerFunc(adminHandler.UsersPage)))
+	mux.Handle("POST /admin/users/{id}/role",
+		adminMW(http.HandlerFunc(adminHandler.UpdateUserRole)))
 
 	// UI pages
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusFound)
+	})
 	mux.HandleFunc("GET /login", handler.LoginPage)
 	mux.HandleFunc("GET /register", handler.RegisterPage)
-	mux.Handle("GET /dashboard", handler.AuthMiddleware(http.HandlerFunc(handler.DashboardPage)))
+	mux.Handle("GET /dashboard",
+		handler.AuthMiddleware(http.HandlerFunc(dashHandler.Dashboard)))
+	mux.Handle("GET /connect/{server_type}",
+		handler.AuthMiddleware(http.HandlerFunc(dashHandler.ConnectPage)))
 
 	// Static files
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 
-	// Health probes for Cloud Run and Docker HEALTHCHECK
+	// Health probes
 	mux.HandleFunc("GET /health", handler.HealthHandler)
 	mux.HandleFunc("GET /healthz", handler.HealthHandler)
 
-	// Start background health probe
+	// Background health probe
 	handler.StartHealthProbe(ctx, upstreamStore, userStore, oauth2Svc)
 
 	addr := ":" + cfg.Port
 	slog.Info("starting server", "addr", addr)
-	if err := http.ListenAndServe(addr, handler.LoggingMiddleware(mux)); err != nil {
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      handler.LoggingMiddleware(mux),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}

@@ -2,10 +2,15 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// ErrDuplicateEmail is returned by CreateUser when the email is already taken.
+var ErrDuplicateEmail = errors.New("email already registered")
 
 type User struct {
 	ID           string
@@ -32,6 +37,10 @@ func (s *UserStore) CreateUser(ctx context.Context, email, passwordHash, role st
 		email, passwordHash, role,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.ProxyToken)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrDuplicateEmail
+		}
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 	return &u, nil
@@ -76,6 +85,24 @@ func (s *UserStore) ListAllUsers(ctx context.Context) ([]*User, error) {
 		users = append(users, &u)
 	}
 	return users, rows.Err()
+}
+
+func (s *UserStore) CountUsers(ctx context.Context) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&n)
+	return n, err
+}
+
+func (s *UserStore) UpdateUserRole(ctx context.Context, id, role string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE users SET role=$1, updated_at=now() WHERE id=$2`, role, id)
+	if err != nil {
+		return fmt.Errorf("update user role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
 }
 
 func (s *UserStore) GetUserByProxyToken(ctx context.Context, token string) (*User, error) {
