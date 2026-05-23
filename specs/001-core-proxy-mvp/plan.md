@@ -43,7 +43,9 @@ support 500 concurrent developer sessions at MVP launch
 **Constraints**:
 - No local filesystem state that cannot survive a container restart
 - All secrets via GCP KMS + Cloud SQL; no Secret Manager per-credential
-- Streamable HTTP transport only (SSE deprecated in MCP spec 2025-06-18)
+- Inbound (AI tools → proxy): Streamable HTTP only (SSE deprecated in MCP spec 2025-06-18)
+- Outbound (proxy → upstream): auto-detect Streamable HTTP with SSE fallback; detected
+  transport cached in `upstream_configs.detected_transport` and re-probed on failure
 - Single binary: proxy endpoint + management web app
 
 **Scale/Scope**: MVP target — hundreds of developers, 5 upstream server types,

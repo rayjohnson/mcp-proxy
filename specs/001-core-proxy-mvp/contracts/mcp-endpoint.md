@@ -58,6 +58,20 @@ Sends a JSON-RPC message from the AI tool to the proxy.
 
 ## Proxy Behavior
 
+### Upstream Transport Handling
+
+The proxy connects to each upstream server using auto-detected transport:
+
+1. Attempt Streamable HTTP (`NewStreamableHTTPClientTransport`).
+2. If the upstream returns 4xx, incorrect content type, or fails to connect,
+   retry with SSE (`NewSSEClientTransport`).
+3. The detected transport is cached in `upstream_configs.detected_transport`.
+4. On subsequent sessions the cached transport is used directly. If it fails,
+   detection runs again (handles upstreams migrating to Streamable HTTP over time).
+
+This is invisible to the AI tool — inbound always uses Streamable HTTP regardless
+of what the upstream speaks.
+
 ### Tool list aggregation (`tools/list`)
 
 When the AI tool calls `tools/list`, the proxy:

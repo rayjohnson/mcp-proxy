@@ -17,20 +17,32 @@ library) — rejected in favor of the official SDK now that it is stable and at 
 
 ---
 
-## MCP Transport: Streamable HTTP (not SSE)
+## MCP Transport: Inbound and Outbound Are Independent
 
-**Decision**: Implement Streamable HTTP transport. Do not implement the legacy SSE
-transport.
+**Inbound (AI tools → proxy) decision**: Streamable HTTP only.
 
-**Rationale**: The MCP specification deprecated the classic SSE transport as of the
-2025-06-18 spec version. Streamable HTTP uses a **single endpoint** that accepts
-both GET (server-to-client streaming) and POST (client-to-server messages). Sessions
-are tracked via the optional `Mcp-Session-Id` request header. All current AI tools
-(Claude, Gemini, Cursor) target Streamable HTTP for cloud-hosted servers.
+**Rationale**: All current AI tools (Claude, Gemini, Cursor) target Streamable HTTP
+for cloud-hosted servers. The classic SSE transport is deprecated in MCP spec
+2025-06-18. No inbound SSE support is needed.
 
-**Alternatives considered**: Classic SSE (two endpoints: `GET /sse` + `POST
-/messages`) — rejected because it is deprecated and would require maintaining a
-legacy code path.
+**Outbound (proxy → upstream servers) decision**: Auto-detect with fallback.
+
+**Rationale**: Upstream servers (Notion, Linear, GitHub, etc.) were built at
+different points in the MCP spec lifecycle — many still speak classic SSE and have
+not migrated. The proxy cannot assume Streamable HTTP on the outbound side. The
+official `go-sdk` v1.5.0 provides both `NewStreamableHTTPClientTransport` and
+`NewSSEClientTransport` on the client side, so the proxy can speak either.
+
+**Detection strategy**: On first connection to an upstream server, the proxy
+attempts Streamable HTTP. If the upstream does not respond correctly (returns 4xx,
+wrong content type, or connection error), the proxy retries using SSE. The detected
+transport is cached in `upstream_configs.detected_transport` so subsequent sessions
+connect immediately without re-probing. If the cached transport fails (e.g., upstream
+migrated to Streamable HTTP), the proxy re-runs detection automatically.
+
+**Alternatives considered**: SSE-only outbound — simpler but wastes the transport
+upgrade as upstreams migrate. Require admins to configure transport per server —
+rejected because it exposes implementation detail to users unnecessarily.
 
 ---
 

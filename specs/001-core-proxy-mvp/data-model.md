@@ -49,6 +49,7 @@ A developer's personal configuration of a single upstream MCP server.
 | server_url | TEXT NOT NULL | HTTPS URL of the upstream MCP server |
 | auth_type | TEXT NOT NULL | `api_key` or `oauth2` |
 | encrypted_creds | BYTEA | KMS-encrypted JSON blob; see Credential Payload below |
+| detected_transport | TEXT | `streamable_http` or `sse`; NULL until first connection |
 | status | TEXT NOT NULL | `reachable`, `unreachable`, `credential_error`, `reauth_required` |
 | status_checked_at | TIMESTAMPTZ | Last time the proxy verified connectivity |
 | created_at | TIMESTAMPTZ NOT NULL | |
