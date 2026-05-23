@@ -1,0 +1,23 @@
+{{define "suggestions-list"}}
+{{range .}}
+<div class="suggestion-card" id="suggestion-{{.ID}}">
+  <strong>{{.DisplayName}}</strong>
+  {{if .Description}}<p>{{.Description}}</p>{{end}}
+  <small>{{.ServerURL}}</small>
+  <div class="suggestion-actions">
+    <button hx-post="/api/suggestions/{{.ID}}/accept"
+            hx-target="#suggestion-{{.ID}}"
+            hx-swap="outerHTML">
+      Add
+    </button>
+    <button hx-post="/api/suggestions/{{.ID}}/dismiss"
+            hx-target="#suggestion-{{.ID}}"
+            hx-swap="outerHTML">
+      Dismiss
+    </button>
+  </div>
+</div>
+{{else}}
+<p>No new server suggestions.</p>
+{{end}}
+{{end}}

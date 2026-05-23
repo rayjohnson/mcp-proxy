@@ -1,0 +1,25 @@
+{{define "server-row"}}
+<tr id="server-row-{{.ID}}">
+  <td>{{.ServerType}}</td>
+  <td><a href="{{.ServerURL}}" target="_blank" rel="noopener">{{.ServerURL}}</a></td>
+  <td>
+    <span class="status-badge status-{{.Status}}"
+          hx-get="/api/upstream/{{.ID}}/status"
+          hx-trigger="every 30s"
+          hx-swap="outerHTML">
+      {{.Status}}
+    </span>
+  </td>
+  <td>
+    {{if eq .Status "reauth_required"}}
+    <a href="/api/oauth2/authorize/{{.ServerType}}">Re-authorize</a>
+    {{end}}
+    <button hx-delete="/api/upstream/{{.ID}}"
+            hx-target="#server-row-{{.ID}}"
+            hx-swap="outerHTML"
+            hx-confirm="Remove {{.ServerType}}?">
+      Remove
+    </button>
+  </td>
+</tr>
+{{end}}

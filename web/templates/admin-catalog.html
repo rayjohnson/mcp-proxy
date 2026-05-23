@@ -1,0 +1,35 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container">
+  <h1>Admin Catalog</h1>
+
+  <section>
+    <h2>Add MCP Server to Catalog</h2>
+    <form hx-post="/api/admin/catalog"
+          hx-target="#catalog-list"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset()">
+      <label>Server Type <input type="text" name="server_type" required placeholder="e.g. github"></label>
+      <label>Server URL  <input type="url"  name="server_url"  required placeholder="https://..."></label>
+      <label>Display Name<input type="text" name="display_name" required></label>
+      <label>Description <input type="text" name="description"></label>
+      <button type="submit">Add to Catalog</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Active Catalog Entries</h2>
+    <table>
+      <thead>
+        <tr><th>Server Type</th><th>URL</th><th>Name</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="catalog-list">
+        {{range .Entries}}
+          {{template "catalog-row" .}}
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+</div>
+{{end}}

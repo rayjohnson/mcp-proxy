@@ -1,1 +1,27 @@
 .claude/settings.local.json
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Build output
+bin/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage.out
+coverage.html

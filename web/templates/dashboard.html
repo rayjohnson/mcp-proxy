@@ -1,0 +1,45 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container">
+  <h1>Your MCP Proxy</h1>
+
+  <section class="proxy-endpoint">
+    <h2>Your Proxy Endpoint</h2>
+    <p>Use this URL in your AI tools (Claude, Cursor, etc.):</p>
+    <code id="proxy-url">{{.ProxyURL}}</code>
+    <button onclick="navigator.clipboard.writeText('{{.ProxyURL}}')">Copy</button>
+  </section>
+
+  {{if .Suggestions}}
+  <section class="suggestions">
+    <h2>New MCP Servers Available</h2>
+    <div id="suggestions-container">
+      {{template "suggestions-list" .Suggestions}}
+    </div>
+  </section>
+  {{end}}
+
+  <section class="servers">
+    <h2>Your MCP Servers</h2>
+
+    <div id="add-server-form-container">
+      {{template "add-server-form" .}}
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Service</th><th>URL</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="server-list"
+             hx-get="/api/upstream"
+             hx-trigger="every 30s"
+             hx-swap="innerHTML">
+        {{range .Upstreams}}
+          {{template "server-row" .}}
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+</div>
+{{end}}

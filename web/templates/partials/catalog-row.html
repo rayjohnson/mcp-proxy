@@ -1,0 +1,15 @@
+{{define "catalog-row"}}
+<tr id="catalog-row-{{.ID}}">
+  <td>{{.ServerType}}</td>
+  <td>{{.ServerURL}}</td>
+  <td>{{.DisplayName}}</td>
+  <td>
+    <button hx-delete="/api/admin/catalog/{{.ID}}"
+            hx-target="#catalog-row-{{.ID}}"
+            hx-swap="outerHTML"
+            hx-confirm="Remove {{.DisplayName}} from catalog?">
+      Remove
+    </button>
+  </td>
+</tr>
+{{end}}
