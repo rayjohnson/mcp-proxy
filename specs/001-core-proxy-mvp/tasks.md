@@ -192,6 +192,21 @@ failures without degrading other servers.
 - [X] T064 [P] Run `go vet ./...` and `staticcheck ./...`; fix all findings
 - [X] T065 [P] Write `deploy/Dockerfile` health check: `HEALTHCHECK CMD curl -f http://localhost:8080/healthz || exit 1`; add `GET /healthz` handler
 - [X] T066 [P] Add `web/static/style.css`: minimal stylesheet for management UI (functional, not polished)
+
+### Phase 9: Features Added During Implementation (FR-023 – FR-026)
+
+- [X] T068 [P] Add `migrations/002_catalog_auth.sql`: extend `default_catalog` with `auth_type`, `oauth_client_id`, `encrypted_oauth_secret`; update `CatalogStore` and `catalog.Service`
+- [X] T069 [P] Extend upstream adapter interface: `OAuth2Config(clientID, clientSecret, redirectURL)` — credentials now come from catalog, not hardcoded; update all 5 adapters
+- [X] T070 [P] Update `oauth2client.Service`: add `catalogStore` dependency; `oauthConfig()` helper looks up catalog entry, decrypts secret, builds `*oauth2.Config`
+- [X] T071 [P] Redesign dashboard: catalog cards with per-server Connect button; OAuth2 → authorize flow, api_key → `/connect/{server_type}` key-entry form; add `connect.html` template
+- [X] T072 [P] Add admin user management: `GET /admin/users`, `POST /admin/users/{id}/role`; `admin-users.html` template; `ListAllUsers` and `UpdateUserRole` on `UserStore`; prevent self-demotion
+- [X] T073 [P] First-user admin bootstrap: `CountUsers()` on `UserStore`; registration assigns `admin` role when count is 0, `developer` otherwise
+- [X] T074 [P] Fix `AuthMiddleware`: redirect browser requests to `/login` instead of returning plain-text 401; JSON `{"error":"unauthorized"}` for `/api/` paths
+- [X] T075 [P] Fix PG16 compatibility: replace `encode(...,'base64url')` (PG17-only) with URL-safe base64 workaround in `001_initial_schema.sql`
+- [X] T076 [P] Add `ErrDuplicateEmail` sentinel in `UserStore`; registration handler distinguishes duplicate from other DB errors
+- [X] T077 [P] Add admin JSON API: `GET/POST /api/admin/catalog`, `DELETE /api/admin/catalog/{id}`; JSON errors on all `/api/` admin paths
+- [X] T078 [P] Add AI tool setup guide to dashboard: collapsible config snippets for Claude Code, Claude Desktop, Cursor, VS Code, Windsurf; pre-filled with user's proxy URL
+- [X] T079 [P] Add handler e2e tests (`auth_e2e_test.go`, `handler_test.go`): full register/login/dashboard/cookie/redirect flows using fake stores and `httptest.Server`
 - [ ] T067 Run quickstart.md end-to-end validation against a staging Cloud Run deployment; fix any failures
 
 ---

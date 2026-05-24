@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-23
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "basic requirements for the cloud MCP proxy"
 
@@ -236,8 +236,10 @@ reporting the unavailable server's status clearly.
 - **FR-017**: An administrator role MUST exist with the ability to manage the default
   server catalog without affecting individual developer configurations or credentials.
 - **FR-018**: An administrator MUST be able to add an upstream MCP server to the
-  default catalog, specifying the server type and URL (but not credentials — each
-  developer authenticates to upstream servers independently).
+  default catalog, specifying the server type, URL, and authentication type
+  (`api_key` or `oauth2`). For OAuth2 servers, the admin MAY optionally pre-configure
+  the organization's OAuth2 app client ID and client secret so that developers only
+  need to authorize access — not register their own OAuth2 application.
 - **FR-019**: When a new developer signs up, all servers currently in the default
   catalog MUST be pre-listed in their dashboard, ready for credential configuration
   or OAuth2 authorization.
@@ -248,6 +250,18 @@ reporting the unavailable server's status clearly.
   dismissed, it MUST NOT reappear for that developer.
 - **FR-022**: An administrator MUST be able to remove a server from the default
   catalog; this MUST NOT affect developers who have already configured that server.
+- **FR-023**: An administrator MUST be able to promote any developer account to admin
+  and demote any admin account to developer. An administrator MUST NOT be able to
+  remove their own admin role.
+- **FR-024**: The first user to register on a fresh deployment is automatically
+  assigned the admin role. Subsequent users are assigned the developer role by default.
+- **FR-025**: The management UI MUST provide inline setup instructions for connecting
+  the proxy endpoint to common AI tools, including at minimum Claude Code, Claude
+  Desktop, Cursor, and VS Code. Instructions MUST be pre-filled with the developer's
+  actual proxy endpoint URL.
+- **FR-026**: The proxy management interface MUST expose a JSON API for admin catalog
+  operations (`GET`, `POST`, `DELETE` on `/api/admin/catalog`) to allow programmatic
+  catalog management (e.g., by an AI assistant).
 
 ### Key Entities
 
@@ -262,7 +276,9 @@ reporting the unavailable server's status clearly.
   an encrypted static API key, or an encrypted OAuth2 token pair (access token +
   refresh token) obtained via browser authorization flow.
 - **Default Server Catalog**: The admin-maintained list of upstream servers
-  pre-suggested to all developers; contains server type and URL only — no credentials.
+  pre-suggested to all developers; contains server type, URL, and auth type. For
+  OAuth2 servers, optionally holds the organization's OAuth2 app credentials
+  (encrypted) so developers do not need to register their own OAuth2 applications.
 - **Catalog Suggestion**: A notification to an existing developer that a new default
   server is available; can be accepted (leading to credential/OAuth2 setup) or
   permanently dismissed.
@@ -293,8 +309,8 @@ reporting the unavailable server's status clearly.
   MCP servers are out of scope.
 - Each developer account has exactly one proxy endpoint in the MVP; multi-endpoint
   or team/organization sharing is deferred.
-- The proxy management interface is a web application; a dedicated API or CLI for
-  configuration management is out of scope for MVP.
+- The proxy management interface is a web application with a supplementary JSON API
+  for admin catalog operations to enable programmatic and AI-assisted management.
 - Billing, usage limits, and rate limiting are out of scope for this initial spec.
 - Upstream servers use one of two auth models: static API key or OAuth2 authorization
   code flow with refresh tokens. The proxy handles both; developers never manually

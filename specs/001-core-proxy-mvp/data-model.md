@@ -101,11 +101,17 @@ Admin-managed list of upstream MCP servers suggested to all developers.
 | description | TEXT | Optional short description |
 | added_by | UUID NOT NULL → users.id | Admin who added this entry |
 | active | BOOLEAN NOT NULL DEFAULT true | Soft delete; false = removed from catalog |
+| auth_type | TEXT NOT NULL DEFAULT 'api_key' | `api_key` or `oauth2`; drives connect flow in UI |
+| oauth_client_id | TEXT | OAuth2 app client ID; NULL for api_key servers |
+| encrypted_oauth_secret | BYTEA | KMS-encrypted OAuth2 app client secret; NULL for api_key servers |
 | created_at | TIMESTAMPTZ NOT NULL | |
 | updated_at | TIMESTAMPTZ NOT NULL | |
 
-**No credentials are stored here** — the catalog records only server type and URL.
-Each developer provides their own credentials when accepting a catalog entry.
+**OAuth2 app credentials** (optional) — for OAuth2 server types, the admin can
+pre-configure the organization's OAuth2 app client ID and encrypted client secret.
+This allows developers to connect by authorizing access only, without needing to
+register their own OAuth2 application. API-key servers store no catalog-level
+credentials; each developer supplies their own key at connect time.
 
 ---
 
