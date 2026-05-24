@@ -121,6 +121,11 @@ func main() {
 		internalmcp.GetServerFunc(internalmcp.ProxyServerDeps{
 			UserStore:   userStore,
 			SessionDeps: sessionDeps,
+			ManagementDeps: internalmcp.ManagementDeps{
+				UpstreamStore: upstreamStore,
+				CatalogStore:  catalogStore,
+				KMSEncrypt:    kmsClient.Encrypt,
+			},
 		}),
 		nil,
 	)

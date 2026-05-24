@@ -11,8 +11,9 @@ import (
 
 // ProxyServerDeps holds everything needed to look up users and open upstream sessions.
 type ProxyServerDeps struct {
-	UserStore   store.UserStoreI
-	SessionDeps SessionDeps
+	UserStore      store.UserStoreI
+	SessionDeps    SessionDeps
+	ManagementDeps ManagementDeps
 }
 
 // GetServerFunc returns a callback suitable for mcp.NewStreamableHTTPHandler.
@@ -41,12 +42,13 @@ func GetServerFunc(deps ProxyServerDeps) func(*http.Request) *sdkmcp.Server {
 			return nil
 		}
 
-		return buildMCPServer(ctx, ps)
+		return buildMCPServer(ctx, ps, deps.ManagementDeps)
 	}
 }
 
-// buildMCPServer creates an mcp.Server populated with all aggregated upstream tools.
-func buildMCPServer(ctx context.Context, ps *ProxySession) *sdkmcp.Server {
+// buildMCPServer creates an mcp.Server populated with all aggregated upstream tools
+// and the proxy management tools.
+func buildMCPServer(ctx context.Context, ps *ProxySession, mgmtDeps ManagementDeps) *sdkmcp.Server {
 	server := sdkmcp.NewServer(
 		&sdkmcp.Implementation{Name: "mcp-proxy", Version: "1.0"},
 		nil,
@@ -55,7 +57,6 @@ func buildMCPServer(ctx context.Context, ps *ProxySession) *sdkmcp.Server {
 	tools, err := AggregateTools(ctx, ps.AllClients())
 	if err != nil {
 		slog.Warn("aggregate tools failed", "err", err)
-		return server
 	}
 
 	for _, pt := range tools {
@@ -63,6 +64,8 @@ func buildMCPServer(ctx context.Context, ps *ProxySession) *sdkmcp.Server {
 			return RouteToolCall(ctx, ps, req)
 		})
 	}
+
+	registerManagementTools(server, ps, mgmtDeps)
 
 	return server
 }
