@@ -53,5 +53,78 @@
     <p>No MCP servers are available yet. Ask your administrator to add servers to the catalog.</p>
   </section>
   {{end}}
+
+  <section class="setup-guide">
+    <h2>Connect Your AI Tools</h2>
+    <p class="hint">Paste your proxy URL into any MCP-compatible AI tool. You'll only see tools from servers you've connected above.</p>
+
+    <details class="client-setup">
+      <summary>Claude Code (CLI)</summary>
+      <p>Run once in your terminal:</p>
+      <pre><code>claude mcp add --transport http mcp-proxy {{.ProxyURL}}</code></pre>
+      <p>Or add manually to <code>~/.claude.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Claude Desktop</summary>
+      <p>Edit your config file and restart Claude Desktop:</p>
+      <p><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>
+         <strong>Windows:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Cursor</summary>
+      <p>Create or edit <code>.cursor/mcp.json</code> in your project root:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>VS Code (GitHub Copilot)</summary>
+      <p>Create or edit <code>.vscode/mcp.json</code> in your project root:</p>
+      <pre><code>{
+  "servers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Windsurf</summary>
+      <p>Open <strong>Windsurf Settings → MCP</strong> and add a new server, or edit <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "serverUrl": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+  </section>
 </div>
 {{end}}
