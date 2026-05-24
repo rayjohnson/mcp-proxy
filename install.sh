@@ -5,8 +5,11 @@ set -e
 
 REPO="rayjohnson/mcp-proxy"
 BINARY_NAME="mcp-proxy"
+MENU_BINARY_NAME="mcp-proxy-menu"
 PLIST_LABEL="io.mcp-proxy.local"
+MENU_PLIST_LABEL="io.mcp-proxy.menu"
 PLIST_PATH="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
+MENU_PLIST_PATH="${HOME}/Library/LaunchAgents/${MENU_PLIST_LABEL}.plist"
 LOG_DIR="${HOME}/Library/Logs/mcp-proxy"
 DATA_DIR_DEFAULT="${HOME}/Library/Application Support/mcp-proxy"
 KEYCHAIN_SERVICE="mcp-proxy"
@@ -80,14 +83,25 @@ fi
 if [ "$UNINSTALL" -eq 1 ]; then
   echo "==> Uninstalling mcp-proxy..."
 
-  # Stop and deregister service
+  # Stop and deregister services
+  if [ -f "$MENU_PLIST_PATH" ]; then
+    launchctl bootout "gui/$(id -u)" "$MENU_PLIST_PATH" 2>/dev/null || true
+    rm -f "$MENU_PLIST_PATH"
+    echo "    Removed menu bar launchd service"
+  fi
   if [ -f "$PLIST_PATH" ]; then
     launchctl bootout "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || true
     rm -f "$PLIST_PATH"
     echo "    Removed launchd service"
   fi
 
-  # Remove binary
+  # Remove binaries
+  for candidate in "/usr/local/bin/${MENU_BINARY_NAME}" "${HOME}/.local/bin/${MENU_BINARY_NAME}"; do
+    if [ -f "$candidate" ]; then
+      rm -f "$candidate"
+      echo "    Removed binary: $candidate"
+    fi
+  done
   for candidate in "/usr/local/bin/${BINARY_NAME}" "${HOME}/.local/bin/${BINARY_NAME}"; do
     if [ -f "$candidate" ]; then
       rm -f "$candidate"
@@ -197,12 +211,37 @@ fi
 BINARY_PATH="${INSTALL_DIR}/${BINARY_NAME}"
 
 # ---------------------------------------------------------------------------
-# Stop existing service before replacing binary
+# Stop existing services before replacing binaries
 # ---------------------------------------------------------------------------
+if [ -f "$MENU_PLIST_PATH" ]; then
+  echo "==> Stopping existing menu bar service for upgrade..."
+  launchctl bootout "gui/$(id -u)" "$MENU_PLIST_PATH" 2>/dev/null || true
+fi
 if [ -f "$PLIST_PATH" ]; then
   echo "==> Stopping existing service for upgrade..."
   launchctl bootout "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || true
 fi
+
+# ---------------------------------------------------------------------------
+# Download and install menu binary
+# ---------------------------------------------------------------------------
+MENU_ARCHIVE_NAME="${MENU_BINARY_NAME}_${VERSION_NUM}_darwin_${GOARCH}.tar.gz"
+echo "==> Downloading ${MENU_ARCHIVE_NAME}..."
+curl -fsSL "${BASE_URL}/${MENU_ARCHIVE_NAME}" -o "${TMP_DIR}/${MENU_ARCHIVE_NAME}"
+
+echo "==> Verifying menu binary checksum..."
+cd "$TMP_DIR"
+if ! grep "${MENU_ARCHIVE_NAME}" checksums.txt | shasum -a 256 -c - 2>/dev/null; then
+  echo "Error: Menu binary checksum verification failed." >&2
+  exit 1
+fi
+cd - > /dev/null
+
+echo "==> Extracting menu binary..."
+tar -xzf "${TMP_DIR}/${MENU_ARCHIVE_NAME}" -C "$TMP_DIR"
+MENU_BINARY_PATH="${INSTALL_DIR}/${MENU_BINARY_NAME}"
+install -m 0755 "${TMP_DIR}/${MENU_BINARY_NAME}" "$MENU_BINARY_PATH"
+echo "    Installed menu binary to ${MENU_BINARY_PATH}"
 
 # ---------------------------------------------------------------------------
 # Install binary
@@ -290,10 +329,47 @@ cat > "$PLIST_PATH" <<EOF
 EOF
 
 # ---------------------------------------------------------------------------
+# Write menu bar LaunchAgent plist
+# ---------------------------------------------------------------------------
+cat > "$MENU_PLIST_PATH" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${MENU_PLIST_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${MENU_BINARY_PATH}</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME}</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>${LOG_DIR}/mcp-proxy-menu.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LOG_DIR}/mcp-proxy-menu.log</string>
+</dict>
+</plist>
+EOF
+
+# ---------------------------------------------------------------------------
 # Bootstrap and health check
 # ---------------------------------------------------------------------------
 echo "==> Starting mcp-proxy service..."
 launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
+
+echo "==> Starting mcp-proxy menu bar app..."
+launchctl bootstrap "gui/$(id -u)" "$MENU_PLIST_PATH"
 
 echo "==> Waiting for service to be ready..."
 HEALTH_URL="http://localhost:${PORT}/health"
@@ -320,7 +396,8 @@ fi
 echo ""
 echo "mcp-proxy ${INSTALL_VERSION} installed successfully."
 echo ""
-echo "  Dashboard: http://localhost:${PORT}/dashboard"
-echo "  Logs:      ${LOG_DIR}/mcp-proxy.log"
-echo "  Data:      ${DATA_DIR}"
+echo "  Dashboard:  http://localhost:${PORT}/dashboard"
+echo "  Logs:       ${LOG_DIR}/mcp-proxy.log"
+echo "  Menu logs:  ${LOG_DIR}/mcp-proxy-menu.log"
+echo "  Data:       ${DATA_DIR}"
 echo ""

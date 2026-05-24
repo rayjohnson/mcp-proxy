@@ -154,3 +154,45 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-menu:
+    name: Build macOS menu app (${{ matrix.goarch }})
+    needs: tag-release
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            goarch: arm64
+          - os: macos-13
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build mcp-proxy-menu
+        run: |
+          VERSION_NUM=$(cat VERSION)
+          CGO_ENABLED=1 GOARCH=${{ matrix.goarch }} go build \
+            -ldflags "-s -w -X main.version=${VERSION_NUM}" \
+            -o mcp-proxy-menu \
+            ./cmd/mcp-proxy-menu
+          tar -czf "mcp-proxy-menu_${VERSION_NUM}_darwin_${{ matrix.goarch }}.tar.gz" mcp-proxy-menu
+
+      - name: Upload archive and extend checksums
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(cat VERSION)"
+          VERSION_NUM=$(cat VERSION)
+          ARCHIVE="mcp-proxy-menu_${VERSION_NUM}_darwin_${{ matrix.goarch }}.tar.gz"
+          gh release upload "$TAG" "$ARCHIVE" --clobber
+          gh release download "$TAG" --pattern checksums.txt --output checksums-existing.txt
+          shasum -a 256 "$ARCHIVE" >> checksums-existing.txt
+          mv checksums-existing.txt checksums.txt
+          gh release upload "$TAG" checksums.txt --clobber

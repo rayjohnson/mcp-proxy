@@ -12,9 +12,10 @@ import (
 
 // ProxySession holds live upstream client connections for one developer session.
 type ProxySession struct {
-	mu       sync.RWMutex
-	clients  map[string]*UpstreamClient // keyed by server_type
-	configs  []*store.UpstreamConfig
+	mu      sync.RWMutex
+	clients map[string]*UpstreamClient // keyed by server_type
+	configs []*store.UpstreamConfig
+	UserID  string
 }
 
 type SessionDeps struct {
@@ -36,6 +37,7 @@ func OpenSession(ctx context.Context, userID string, deps SessionDeps) (*ProxySe
 	ps := &ProxySession{
 		clients: make(map[string]*UpstreamClient),
 		configs: configs,
+		UserID:  userID,
 	}
 
 	var wg sync.WaitGroup
