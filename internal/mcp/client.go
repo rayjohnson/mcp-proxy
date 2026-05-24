@@ -11,6 +11,7 @@ import (
 const (
 	TransportStreamableHTTP = "streamable_http"
 	TransportSSE            = "sse"
+	TransportStdio          = "stdio"
 )
 
 // UpstreamClient wraps a connected MCP client session to an upstream server.

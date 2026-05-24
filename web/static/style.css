@@ -193,3 +193,17 @@ th { background: #f1f3f5; font-weight: 600; }
   font-size: inherit;
   word-break: normal;
 }
+
+.mode-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2em 0.55em;
+  border-radius: 3px;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+.mode-local  { background: #d1ecf1; color: #0c5460; }
+.mode-hosted { background: #d4edda; color: #155724; }

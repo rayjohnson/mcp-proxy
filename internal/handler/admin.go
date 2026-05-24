@@ -12,16 +12,28 @@ import (
 
 // catalogEntryResponse is the JSON view of a catalog entry (no encrypted fields).
 type catalogEntryResponse struct {
-	ID            string  `json:"id"`
-	ServerType    string  `json:"server_type"`
-	ServerURL     string  `json:"server_url"`
-	DisplayName   string  `json:"display_name"`
-	Description   *string `json:"description,omitempty"`
-	AuthType      string  `json:"auth_type"`
-	OAuthClientID *string `json:"oauth_client_id,omitempty"`
+	ID            string            `json:"id"`
+	ServerType    string            `json:"server_type"`
+	ServerURL     string            `json:"server_url"`
+	DisplayName   string            `json:"display_name"`
+	Description   *string           `json:"description,omitempty"`
+	AuthType      string            `json:"auth_type"`
+	OAuthClientID *string           `json:"oauth_client_id,omitempty"`
+	Transport     string            `json:"transport"`
+	Command       *string           `json:"command"`
+	Args          []string          `json:"args"`
+	Env           map[string]string `json:"env"`
 }
 
 func catalogEntryToResponse(e *store.CatalogEntry) catalogEntryResponse {
+	args := e.Args
+	if args == nil {
+		args = []string{}
+	}
+	env := e.Env
+	if env == nil {
+		env = map[string]string{}
+	}
 	return catalogEntryResponse{
 		ID:            e.ID,
 		ServerType:    e.ServerType,
@@ -30,17 +42,25 @@ func catalogEntryToResponse(e *store.CatalogEntry) catalogEntryResponse {
 		Description:   e.Description,
 		AuthType:      e.AuthType,
 		OAuthClientID: e.OAuthClientID,
+		Transport:     e.Transport,
+		Command:       e.Command,
+		Args:          args,
+		Env:           env,
 	}
 }
 
 type addCatalogRequest struct {
-	ServerType        string `json:"server_type"`
-	ServerURL         string `json:"server_url"`
-	DisplayName       string `json:"display_name"`
-	Description       string `json:"description"`
-	AuthType          string `json:"auth_type"`
-	OAuthClientID     string `json:"oauth_client_id"`
-	OAuthClientSecret string `json:"oauth_client_secret"`
+	ServerType        string            `json:"server_type"`
+	ServerURL         string            `json:"server_url"`
+	DisplayName       string            `json:"display_name"`
+	Description       string            `json:"description"`
+	AuthType          string            `json:"auth_type"`
+	OAuthClientID     string            `json:"oauth_client_id"`
+	OAuthClientSecret string            `json:"oauth_client_secret"`
+	Transport         string            `json:"transport"`
+	Command           string            `json:"command"`
+	Args              []string          `json:"args"`
+	Env               map[string]string `json:"env"`
 }
 
 type adminUserStore interface {
@@ -51,13 +71,14 @@ type adminUserStore interface {
 // AdminHandler serves the admin catalog and user-management pages.
 type AdminHandler struct {
 	catalogSvc   *catalog.Service
-	catalogStore *store.CatalogStore
+	catalogStore store.CatalogStoreI
 	userStore    adminUserStore
 	kmsClient    *kms.Client
+	localMode    bool
 }
 
-func NewAdminHandler(svc *catalog.Service, cs *store.CatalogStore, us *store.UserStore, k *kms.Client) *AdminHandler {
-	return &AdminHandler{catalogSvc: svc, catalogStore: cs, userStore: us, kmsClient: k}
+func NewAdminHandler(svc *catalog.Service, cs store.CatalogStoreI, us store.UserStoreI, k *kms.Client, localMode bool) *AdminHandler {
+	return &AdminHandler{catalogSvc: svc, catalogStore: cs, userStore: us, kmsClient: k, localMode: localMode}
 }
 
 // --- Catalog page ---
@@ -103,6 +124,10 @@ func (h *AdminHandler) AddCatalogEntry(w http.ResponseWriter, r *http.Request) {
 		redirectErr("Auth type must be api_key or oauth2.")
 		return
 	}
+	if h.localMode && authType == "oauth2" {
+		redirectErr("OAuth2 app credentials require hosted mode. Use PAT or API key in local mode.")
+		return
+	}
 
 	var oauthClientID *string
 	var encryptedSecret []byte
@@ -126,7 +151,8 @@ func (h *AdminHandler) AddCatalogEntry(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromContext(r.Context())
 	_, err := h.catalogSvc.AddToCatalog(r.Context(),
 		serverType, serverURL, displayName, description, claims.UserID,
-		authType, oauthClientID, encryptedSecret)
+		authType, "http", nil, nil, nil,
+		oauthClientID, encryptedSecret)
 	if err != nil {
 		redirectErr("Failed to add server: " + err.Error())
 		return
@@ -219,12 +245,39 @@ func (h *AdminHandler) AddCatalogEntryAPI(w http.ResponseWriter, r *http.Request
 		writeJSONError(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	if req.ServerType == "" || req.ServerURL == "" || req.DisplayName == "" || req.AuthType == "" {
-		writeJSONError(w, "server_type, server_url, display_name, and auth_type are required", http.StatusBadRequest)
+	if req.ServerType == "" || req.DisplayName == "" || req.AuthType == "" {
+		writeJSONError(w, "server_type, display_name, and auth_type are required", http.StatusBadRequest)
 		return
 	}
-	if req.AuthType != "api_key" && req.AuthType != "oauth2" {
-		writeJSONError(w, "auth_type must be api_key or oauth2", http.StatusBadRequest)
+
+	transport := req.Transport
+	if transport == "" {
+		transport = "http"
+	}
+	if transport != "http" && transport != "stdio" {
+		writeJSONError(w, "transport must be 'http' or 'stdio'", http.StatusBadRequest)
+		return
+	}
+	if !h.localMode && transport == "stdio" {
+		writeJSONError(w, "transport 'stdio' is only supported in local mode", http.StatusBadRequest)
+		return
+	}
+	if transport == "stdio" && req.Command == "" {
+		writeJSONError(w, "command is required when transport is 'stdio'", http.StatusBadRequest)
+		return
+	}
+	if transport == "http" && req.ServerURL == "" {
+		writeJSONError(w, "server_url is required when transport is 'http'", http.StatusBadRequest)
+		return
+	}
+
+	validAuthTypes := map[string]bool{"api_key": true, "pat": true, "oauth2": true, "none": true}
+	if !validAuthTypes[req.AuthType] {
+		writeJSONError(w, "auth_type must be one of: api_key, pat, oauth2, none", http.StatusBadRequest)
+		return
+	}
+	if h.localMode && req.AuthType == "oauth2" {
+		writeJSONError(w, "auth_type 'oauth2' requires hosted mode; use 'pat' or 'api_key' in local mode", http.StatusBadRequest)
 		return
 	}
 
@@ -245,10 +298,16 @@ func (h *AdminHandler) AddCatalogEntryAPI(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	var cmd *string
+	if req.Command != "" {
+		cmd = &req.Command
+	}
+
 	claims := ClaimsFromContext(r.Context())
 	entry, err := h.catalogSvc.AddToCatalog(r.Context(),
 		req.ServerType, req.ServerURL, req.DisplayName, req.Description, claims.UserID,
-		req.AuthType, oauthClientID, encryptedSecret)
+		req.AuthType, transport, cmd, req.Args, req.Env,
+		oauthClientID, encryptedSecret)
 	if err != nil {
 		writeJSONError(w, "failed to add catalog entry: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -268,4 +327,13 @@ func (h *AdminHandler) RemoveCatalogEntryAPI(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ModeHandler handles GET /api/admin/mode.
+func (h *AdminHandler) ModeHandler(w http.ResponseWriter, r *http.Request) {
+	mode := "hosted"
+	if h.localMode {
+		mode = "local"
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"mode": mode})
 }

@@ -9,23 +9,25 @@ import (
 
 // Service orchestrates catalog management and suggestion fan-out.
 type Service struct {
-	catalog     *store.CatalogStore
-	suggestions *store.SuggestionStore
+	catalog     store.CatalogStoreI
+	suggestions store.SuggestionStoreI
 }
 
-func NewService(catalog *store.CatalogStore, suggestions *store.SuggestionStore) *Service {
+func NewService(catalog store.CatalogStoreI, suggestions store.SuggestionStoreI) *Service {
 	return &Service{catalog: catalog, suggestions: suggestions}
 }
 
 // AddToCatalog inserts a new catalog entry and fans out a pending suggestion
 // to every existing developer user in a single operation.
 func (s *Service) AddToCatalog(ctx context.Context,
-	serverType, serverURL, displayName, description, addedBy, authType string,
+	serverType, serverURL, displayName, description, addedBy, authType, transport string,
+	command *string, args []string, env map[string]string,
 	oauthClientID *string, encryptedOAuthSecret []byte,
 ) (*store.CatalogEntry, error) {
 	entry, err := s.catalog.AddCatalogEntry(ctx,
 		serverType, serverURL, displayName, description, addedBy,
-		authType, oauthClientID, encryptedOAuthSecret)
+		authType, transport, command, args, env,
+		oauthClientID, encryptedOAuthSecret)
 	if err != nil {
 		return nil, fmt.Errorf("add to catalog: %w", err)
 	}

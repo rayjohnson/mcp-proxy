@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan at
-specs/001-core-proxy-mvp/plan.md
+specs/002-local-mode-stdio/plan.md
 <!-- SPECKIT END -->

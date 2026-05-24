@@ -15,17 +15,17 @@ import (
 
 // Service handles OAuth2 authorization flows for upstream MCP servers.
 type Service struct {
-	stateStore    *store.OAuth2StateStore
-	upstreamStore *store.UpstreamStore
-	catalogStore  *store.CatalogStore
+	stateStore    store.OAuth2StateStoreI
+	upstreamStore store.UpstreamStoreI
+	catalogStore  store.CatalogStoreI
 	kmsClient     *kms.Client
 	baseURL       string
 }
 
 func NewService(
-	stateStore *store.OAuth2StateStore,
-	upstreamStore *store.UpstreamStore,
-	catalogStore *store.CatalogStore,
+	stateStore store.OAuth2StateStoreI,
+	upstreamStore store.UpstreamStoreI,
+	catalogStore store.CatalogStoreI,
 	kmsClient *kms.Client,
 	baseURL string,
 ) *Service {

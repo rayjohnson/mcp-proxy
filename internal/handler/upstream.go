@@ -10,12 +10,12 @@ import (
 )
 
 type UpstreamHandler struct {
-	upstreamStore *store.UpstreamStore
-	catalogStore  *store.CatalogStore
+	upstreamStore store.UpstreamStoreI
+	catalogStore  store.CatalogStoreI
 	kmsClient     *kms.Client
 }
 
-func NewUpstreamHandler(us *store.UpstreamStore, cs *store.CatalogStore, k *kms.Client) *UpstreamHandler {
+func NewUpstreamHandler(us store.UpstreamStoreI, cs store.CatalogStoreI, k *kms.Client) *UpstreamHandler {
 	return &UpstreamHandler{upstreamStore: us, catalogStore: cs, kmsClient: k}
 }
 
@@ -74,7 +74,12 @@ func (h *UpstreamHandler) Connect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/dashboard?error=Unknown+server.", http.StatusSeeOther)
 		return
 	}
-	if entry.AuthType != "api_key" {
+	if entry.Transport == "stdio" {
+		// stdio servers need no per-user credentials; they are connected automatically.
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+		return
+	}
+	if entry.AuthType != "api_key" && entry.AuthType != "pat" {
 		http.Redirect(w, r, "/dashboard?error=Use+OAuth+for+this+server.", http.StatusSeeOther)
 		return
 	}
@@ -198,6 +203,6 @@ func (h *UpstreamHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetUpstreamConfigsByUserID is a helper for the session layer.
-func GetUpstreamConfigsByUserID(ctx context.Context, userStore *store.UpstreamStore, userID string) ([]*store.UpstreamConfig, error) {
-	return userStore.GetUpstreamConfigsByUserID(ctx, userID)
+func GetUpstreamConfigsByUserID(ctx context.Context, upstreamStore store.UpstreamStoreI, userID string) ([]*store.UpstreamConfig, error) {
+	return upstreamStore.GetUpstreamConfigsByUserID(ctx, userID)
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +19,10 @@ type CatalogEntry struct {
 	AuthType             string
 	OAuthClientID        *string
 	EncryptedOAuthSecret []byte
+	Transport            string            // "http" (default) or "stdio"
+	Command              *string           // stdio only
+	Args                 []string          // stdio only
+	Env                  map[string]string // stdio only
 }
 
 type CatalogStore struct {
@@ -29,29 +34,62 @@ func NewCatalogStore(pool *pgxpool.Pool) *CatalogStore {
 }
 
 const catalogCols = `id, server_type, server_url, display_name, description, added_by, active,
-	auth_type, oauth_client_id, encrypted_oauth_secret`
+	auth_type, oauth_client_id, encrypted_oauth_secret, transport, command, args, env`
 
 func scanCatalog(row interface{ Scan(...any) error }, e *CatalogEntry) error {
-	return row.Scan(&e.ID, &e.ServerType, &e.ServerURL, &e.DisplayName,
+	var argsJSON, envJSON []byte
+	err := row.Scan(&e.ID, &e.ServerType, &e.ServerURL, &e.DisplayName,
 		&e.Description, &e.AddedBy, &e.Active,
-		&e.AuthType, &e.OAuthClientID, &e.EncryptedOAuthSecret)
+		&e.AuthType, &e.OAuthClientID, &e.EncryptedOAuthSecret,
+		&e.Transport, &e.Command, &argsJSON, &envJSON)
+	if err != nil {
+		return err
+	}
+	if len(argsJSON) > 0 {
+		_ = json.Unmarshal(argsJSON, &e.Args)
+	}
+	if e.Args == nil {
+		e.Args = []string{}
+	}
+	if len(envJSON) > 0 {
+		_ = json.Unmarshal(envJSON, &e.Env)
+	}
+	if e.Env == nil {
+		e.Env = map[string]string{}
+	}
+	return nil
 }
 
 func (s *CatalogStore) AddCatalogEntry(ctx context.Context,
-	serverType, serverURL, displayName, description, addedBy, authType string,
+	serverType, serverURL, displayName, description, addedBy, authType, transport string,
+	command *string, args []string, env map[string]string,
 	oauthClientID *string, encryptedOAuthSecret []byte,
 ) (*CatalogEntry, error) {
 	var desc *string
 	if description != "" {
 		desc = &description
 	}
+	if transport == "" {
+		transport = "http"
+	}
+	if args == nil {
+		args = []string{}
+	}
+	if env == nil {
+		env = map[string]string{}
+	}
+	argsJSON, _ := json.Marshal(args)
+	envJSON, _ := json.Marshal(env)
+
 	var e CatalogEntry
 	err := scanCatalog(s.pool.QueryRow(ctx, `
 		INSERT INTO default_catalog
-		  (server_type, server_url, display_name, description, added_by, auth_type, oauth_client_id, encrypted_oauth_secret)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		  (server_type, server_url, display_name, description, added_by, auth_type,
+		   oauth_client_id, encrypted_oauth_secret, transport, command, args, env)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING `+catalogCols,
-		serverType, serverURL, displayName, desc, addedBy, authType, oauthClientID, encryptedOAuthSecret,
+		serverType, serverURL, displayName, desc, addedBy, authType,
+		oauthClientID, encryptedOAuthSecret, transport, command, argsJSON, envJSON,
 	), &e)
 	if err != nil {
 		return nil, fmt.Errorf("add catalog entry: %w", err)

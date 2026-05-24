@@ -11,7 +11,7 @@ import (
 
 // ProxyServerDeps holds everything needed to look up users and open upstream sessions.
 type ProxyServerDeps struct {
-	UserStore   *store.UserStore
+	UserStore   store.UserStoreI
 	SessionDeps SessionDeps
 }
 
