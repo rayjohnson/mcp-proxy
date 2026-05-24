@@ -22,7 +22,7 @@ jobs:
       - name: Run govulncheck
         run: govulncheck -format sarif ./... > govulncheck.sarif || true
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: govulncheck.sarif
           category: govulncheck
