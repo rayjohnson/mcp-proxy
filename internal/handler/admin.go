@@ -10,6 +10,39 @@ import (
 	"github.com/rayjohnson/mcp-proxy/internal/store"
 )
 
+// catalogEntryResponse is the JSON view of a catalog entry (no encrypted fields).
+type catalogEntryResponse struct {
+	ID            string  `json:"id"`
+	ServerType    string  `json:"server_type"`
+	ServerURL     string  `json:"server_url"`
+	DisplayName   string  `json:"display_name"`
+	Description   *string `json:"description,omitempty"`
+	AuthType      string  `json:"auth_type"`
+	OAuthClientID *string `json:"oauth_client_id,omitempty"`
+}
+
+func catalogEntryToResponse(e *store.CatalogEntry) catalogEntryResponse {
+	return catalogEntryResponse{
+		ID:            e.ID,
+		ServerType:    e.ServerType,
+		ServerURL:     e.ServerURL,
+		DisplayName:   e.DisplayName,
+		Description:   e.Description,
+		AuthType:      e.AuthType,
+		OAuthClientID: e.OAuthClientID,
+	}
+}
+
+type addCatalogRequest struct {
+	ServerType        string `json:"server_type"`
+	ServerURL         string `json:"server_url"`
+	DisplayName       string `json:"display_name"`
+	Description       string `json:"description"`
+	AuthType          string `json:"auth_type"`
+	OAuthClientID     string `json:"oauth_client_id"`
+	OAuthClientSecret string `json:"oauth_client_secret"`
+}
+
 type adminUserStore interface {
 	ListAllUsers(context.Context) ([]*store.User, error)
 	UpdateUserRole(ctx context.Context, id, role string) error
@@ -161,4 +194,78 @@ func (h *AdminHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+// --- JSON API ---
+
+// ListCatalogAPI handles GET /api/admin/catalog.
+func (h *AdminHandler) ListCatalogAPI(w http.ResponseWriter, r *http.Request) {
+	entries, err := h.catalogStore.ListActiveCatalogEntries(r.Context())
+	if err != nil {
+		writeJSONError(w, "failed to list catalog", http.StatusInternalServerError)
+		return
+	}
+	resp := make([]catalogEntryResponse, len(entries))
+	for i, e := range entries {
+		resp[i] = catalogEntryToResponse(e)
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// AddCatalogEntryAPI handles POST /api/admin/catalog.
+func (h *AdminHandler) AddCatalogEntryAPI(w http.ResponseWriter, r *http.Request) {
+	var req addCatalogRequest
+	if err := readJSON(r, &req); err != nil {
+		writeJSONError(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.ServerType == "" || req.ServerURL == "" || req.DisplayName == "" || req.AuthType == "" {
+		writeJSONError(w, "server_type, server_url, display_name, and auth_type are required", http.StatusBadRequest)
+		return
+	}
+	if req.AuthType != "api_key" && req.AuthType != "oauth2" {
+		writeJSONError(w, "auth_type must be api_key or oauth2", http.StatusBadRequest)
+		return
+	}
+
+	var oauthClientID *string
+	var encryptedSecret []byte
+
+	if req.AuthType == "oauth2" {
+		if req.OAuthClientID == "" || req.OAuthClientSecret == "" {
+			writeJSONError(w, "oauth_client_id and oauth_client_secret are required for oauth2", http.StatusBadRequest)
+			return
+		}
+		oauthClientID = &req.OAuthClientID
+		var err error
+		encryptedSecret, err = h.kmsClient.Encrypt(r.Context(), []byte(req.OAuthClientSecret))
+		if err != nil {
+			writeJSONError(w, "failed to encrypt OAuth secret", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	claims := ClaimsFromContext(r.Context())
+	entry, err := h.catalogSvc.AddToCatalog(r.Context(),
+		req.ServerType, req.ServerURL, req.DisplayName, req.Description, claims.UserID,
+		req.AuthType, oauthClientID, encryptedSecret)
+	if err != nil {
+		writeJSONError(w, "failed to add catalog entry: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, catalogEntryToResponse(entry))
+}
+
+// RemoveCatalogEntryAPI handles DELETE /api/admin/catalog/{id}.
+func (h *AdminHandler) RemoveCatalogEntryAPI(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeJSONError(w, "missing catalog entry id", http.StatusBadRequest)
+		return
+	}
+	if err := h.catalogSvc.RemoveFromCatalog(r.Context(), id); err != nil {
+		writeJSONError(w, "failed to remove catalog entry", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -36,6 +36,10 @@ func AdminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims := ClaimsFromContext(r.Context())
 		if claims == nil || claims.Role != "admin" {
+			if isAPIRequest(r) {
+				writeJSONError(w, "forbidden", http.StatusForbidden)
+				return
+			}
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -43,10 +47,10 @@ func AdminMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// authRedirectOrError redirects browser requests to /login and returns 401 for API calls.
+// authRedirectOrError redirects browser requests to /login and returns 401 JSON for API calls.
 func authRedirectOrError(w http.ResponseWriter, r *http.Request) {
 	if isAPIRequest(r) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		writeJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)

@@ -147,6 +147,14 @@ func main() {
 	mux.Handle("POST /admin/users/{id}/role",
 		adminMW(http.HandlerFunc(adminHandler.UpdateUserRole)))
 
+	// Admin JSON API
+	mux.Handle("GET /api/admin/catalog",
+		adminMW(http.HandlerFunc(adminHandler.ListCatalogAPI)))
+	mux.Handle("POST /api/admin/catalog",
+		adminMW(http.HandlerFunc(adminHandler.AddCatalogEntryAPI)))
+	mux.Handle("DELETE /api/admin/catalog/{id}",
+		adminMW(http.HandlerFunc(adminHandler.RemoveCatalogEntryAPI)))
+
 	// UI pages
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
