@@ -6,39 +6,63 @@ on:
   push:
     branches: [main]
 
+env:
+  # Merges that touch only these paths do not require a VERSION bump and will
+  # not trigger a release tag. Uses Python fnmatch glob syntax, one per line.
+  VERSION_EXEMPT_PATHS: |
+    .github/workflows/**
+    specs/**
+    *.md
+
 jobs:
   detect-changes:
     name: Detect code changes
     runs-on: ubuntu-latest
     outputs:
-      code_changed: ${{ steps.check.outputs.code_changed }}
+      code_changed: ${{ steps.classify.outputs.code_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Determine changed files
-        id: check
+      - name: Collect changed files
+        id: diff
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="${{ github.event.pull_request.base.sha }}"
           else
             BASE="${{ github.event.before }}"
           fi
+          {
+            echo 'files<<EOF'
+            git diff --name-only "$BASE" HEAD
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
-          CHANGED=$(git diff --name-only "$BASE" HEAD)
-          echo "Changed files:"
-          echo "$CHANGED"
+      - name: Classify changes against exempt paths
+        id: classify
+        shell: python3 {0}
+        env:
+          CHANGED_FILES: ${{ steps.diff.outputs.files }}
+        run: |
+          import os, fnmatch
 
-          # Exempt paths: .github/workflows/**, specs/**, *.md at repo root
-          # code_changed=true if any non-exempt file was touched
-          if echo "$CHANGED" | grep -qvE '^(\.github/workflows/|specs/|[^/]+\.md$)'; then
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
-            echo "Result: code changes detected"
-          else
-            echo "code_changed=false" >> "$GITHUB_OUTPUT"
-            echo "Result: only exempt paths changed — no version bump required"
-          fi
+          changed  = [f for f in os.environ["CHANGED_FILES"].splitlines() if f]
+          patterns = [p.strip() for p in os.environ["VERSION_EXEMPT_PATHS"].splitlines() if p.strip()]
+
+          print("Changed files:")
+          for f in changed:
+              print(f"  {f}")
+          print(f"\nExempt patterns: {patterns}")
+
+          def is_exempt(path):
+              return any(fnmatch.fnmatch(path, p) for p in patterns)
+
+          code_changed = any(not is_exempt(f) for f in changed)
+          print(f"\nResult: {'code changes detected' if code_changed else 'only exempt paths changed — no release needed'}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"code_changed={'true' if code_changed else 'false'}\n")
 
   version-check:
     name: Version bump check
@@ -50,15 +74,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: No version bump required (exempt paths only)
-        if: needs.detect-changes.outputs.code_changed == 'false'
-        run: echo "Only exempt paths changed — no version bump required."
+      - name: Verify VERSION file exists
+        run: |
+          if [ ! -f VERSION ]; then
+            echo "::error file=VERSION::VERSION file is missing. Create one in the repo root (e.g. echo '0.1.0' > VERSION)."
+            exit 1
+          fi
 
-      - name: Verify VERSION is bumped
+      - name: Skip — only exempt paths changed
+        if: needs.detect-changes.outputs.code_changed == 'false'
+        run: echo "Only exempt paths changed — version bump not required."
+
+      - name: Verify VERSION is bumped above main
         if: needs.detect-changes.outputs.code_changed == 'true'
         run: |
           BRANCH_VERSION=$(cat VERSION)
-          MAIN_VERSION=$(git show origin/main:VERSION)
+          MAIN_VERSION=$(git show origin/main:VERSION 2>/dev/null || echo "0.0.0")
           echo "Branch VERSION : $BRANCH_VERSION"
           echo "main   VERSION : $MAIN_VERSION"
 
@@ -78,6 +109,7 @@ jobs:
   tag-release:
     name: Tag and release
     needs: detect-changes
+    # Only runs for code-changing merges — skipped entirely for exempt-only merges.
     if: github.event_name == 'push' && needs.detect-changes.outputs.code_changed == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -87,6 +119,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify VERSION file exists
+        run: |
+          if [ ! -f VERSION ]; then
+            echo "::error::VERSION file is missing from the repository. This should not happen — the version-check job should have caught this."
+            exit 1
+          fi
+
       - name: Read VERSION
         id: ver
         run: echo "tag=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
@@ -95,7 +134,7 @@ jobs:
         run: |
           TAG="${{ steps.ver.outputs.tag }}"
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
-            echo "::error file=VERSION::Tag $TAG already exists. VERSION must be bumped before merging code changes."
+            echo "::error file=VERSION::Tag $TAG already exists. VERSION must be bumped before merging code changes to main."
             exit 1
           fi
 
@@ -106,5 +145,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG"
           git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
-          echo "The release workflow will now build and publish the GitHub Release."
+          echo "Tagged $TAG — the release workflow will now build and publish the GitHub Release."
