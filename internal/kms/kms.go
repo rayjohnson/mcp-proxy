@@ -25,11 +25,12 @@ type Client struct {
 
 // New returns a Client for the given key name.
 // When keyName is "local", a local AES-256-GCM shim is used instead of GCP KMS.
-// The local key is read from LOCAL_KMS_KEY (hex-encoded 32 bytes); if unset, a
-// random ephemeral key is generated (credentials are lost on restart — dev only).
-func New(ctx context.Context, keyName string) (*Client, error) {
+// localKey is an optional hex-encoded 32-byte key; if empty, LOCAL_KMS_KEY env
+// var is checked next, and a random ephemeral key is generated as a last resort
+// (credentials are lost on restart — dev only).
+func New(ctx context.Context, keyName, localKey string) (*Client, error) {
 	if keyName == "local" {
-		lk, err := newLocalKMS()
+		lk, err := newLocalKMS(localKey)
 		if err != nil {
 			return nil, err
 		}
@@ -84,16 +85,21 @@ type localKMS struct {
 	aead cipher.AEAD
 }
 
-func newLocalKMS() (*localKMS, error) {
+func newLocalKMS(localKey string) (*localKMS, error) {
 	var key []byte
 
-	if raw := os.Getenv("LOCAL_KMS_KEY"); raw != "" {
+	// Priority: explicit localKey arg → LOCAL_KMS_KEY env → ephemeral
+	if localKey == "" {
+		localKey = os.Getenv("LOCAL_KMS_KEY")
+	}
+
+	if localKey != "" {
 		var err error
-		key, err = hex.DecodeString(raw)
+		key, err = hex.DecodeString(localKey)
 		if err != nil || len(key) != 32 {
-			return nil, fmt.Errorf("LOCAL_KMS_KEY must be a 64-character hex string (32 bytes)")
+			return nil, fmt.Errorf("encryption key must be a 64-character hex string (32 bytes)")
 		}
-		slog.Info("kms: using local AES-256-GCM shim with LOCAL_KMS_KEY")
+		slog.Info("kms: using local AES-256-GCM shim")
 	} else {
 		key = make([]byte, 32)
 		if _, err := io.ReadFull(rand.Reader, key); err != nil {

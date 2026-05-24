@@ -2,8 +2,11 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/zalando/go-keyring"
 )
 
 type Config struct {
@@ -16,6 +19,9 @@ type Config struct {
 	LocalMode bool
 	// DataDir is the directory used for mcp-proxy.db in local mode.
 	DataDir string
+	// LocalKMSKey is the hex-encoded AES-256 key for local mode.
+	// Sourced from LOCAL_KMS_KEY env var (priority) or macOS Keychain.
+	LocalKMSKey string
 
 	// JumpCloud OIDC — empty until infra team provisions it
 	OIDCIssuerURL    string
@@ -32,13 +38,28 @@ func Load() (*Config, error) {
 		dbDSN = "file:" + filepath.Join(dataDir, "mcp-proxy.db")
 	}
 
+	var localKMSKey string
+	if localMode {
+		localKMSKey = os.Getenv("LOCAL_KMS_KEY")
+		if localKMSKey == "" {
+			key, err := keyring.Get("mcp-proxy", "encryption-key")
+			if err != nil {
+				slog.Warn("encryption key not found in Keychain; credentials will not survive restarts", "err", err)
+			} else {
+				localKMSKey = key
+				slog.Info("kms: loaded encryption key from Keychain")
+			}
+		}
+	}
+
 	cfg := &Config{
-		Port:             getenv("PORT", "8080"),
+		Port:             getenv("PORT", "9753"),
 		DBDSN:            dbDSN,
 		KMSKeyName:       os.Getenv("KMS_KEY_NAME"),
 		BaseURL:          os.Getenv("BASE_URL"),
 		LocalMode:        localMode,
 		DataDir:          dataDir,
+		LocalKMSKey:      localKMSKey,
 		OIDCIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OIDCClientID:     os.Getenv("OIDC_CLIENT_ID"),
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),

@@ -3,14 +3,19 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
+	"sort"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
 
-// Open opens (or creates) the SQLite database at the given path and runs the
-// schema DDL. Safe to call on an existing database — all statements use
-// IF NOT EXISTS.
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
+// Open opens (or creates) the SQLite database at the given path and runs any
+// pending migrations.
 func Open(ctx context.Context, path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", path+"?_journal_mode=WAL&_foreign_keys=on")
 	if err != nil {
@@ -20,79 +25,58 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 		db.Close() //nolint:errcheck
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
-	if err := applySchema(ctx, db); err != nil {
+	if err := applyMigrations(ctx, db); err != nil {
 		db.Close() //nolint:errcheck
-		return nil, fmt.Errorf("apply schema: %w", err)
+		return nil, fmt.Errorf("apply migrations: %w", err)
 	}
 	return db, nil
 }
 
-func applySchema(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, schema)
-	return err
+func applyMigrations(ctx context.Context, db *sql.DB) error {
+	var currentVersion int
+	row := db.QueryRowContext(ctx, "PRAGMA user_version")
+	if err := row.Scan(&currentVersion); err != nil {
+		return fmt.Errorf("read user_version: %w", err)
+	}
+
+	entries, err := migrationFS.ReadDir("migrations")
+	if err != nil {
+		return fmt.Errorf("read migrations dir: %w", err)
+	}
+
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
+			files = append(files, e.Name())
+		}
+	}
+	sort.Strings(files)
+
+	for i, name := range files {
+		migrationNumber := i + 1
+		if migrationNumber <= currentVersion {
+			continue
+		}
+
+		data, err := migrationFS.ReadFile("migrations/" + name)
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", name, err)
+		}
+
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin migration %s: %w", name, err)
+		}
+
+		if _, err := tx.ExecContext(ctx, string(data)); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("exec migration %s: %w", name, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration %s: %w", name, err)
+		}
+	}
+
+	return nil
 }
-
-const schema = `
-CREATE TABLE IF NOT EXISTS users (
-	id           TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-	email        TEXT NOT NULL UNIQUE,
-	password_hash TEXT,
-	role         TEXT NOT NULL DEFAULT 'developer',
-	proxy_token  TEXT NOT NULL DEFAULT (lower(hex(randomblob(32)))),
-	created_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS default_catalog (
-	id                     TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-	server_type            TEXT NOT NULL UNIQUE,
-	server_url             TEXT NOT NULL DEFAULT '',
-	display_name           TEXT NOT NULL,
-	description            TEXT,
-	added_by               TEXT NOT NULL,
-	active                 INTEGER NOT NULL DEFAULT 1,
-	auth_type              TEXT NOT NULL,
-	oauth_client_id        TEXT,
-	encrypted_oauth_secret BLOB,
-	transport              TEXT NOT NULL DEFAULT 'http',
-	command                TEXT,
-	args                   TEXT NOT NULL DEFAULT '[]',
-	env                    TEXT NOT NULL DEFAULT '{}',
-	created_at             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at             TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS upstream_configs (
-	id                  TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-	user_id             TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	server_type         TEXT NOT NULL,
-	server_url          TEXT NOT NULL DEFAULT '',
-	auth_type           TEXT NOT NULL,
-	encrypted_creds     BLOB,
-	detected_transport  TEXT,
-	status              TEXT NOT NULL DEFAULT 'pending',
-	status_checked_at   TEXT,
-	created_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE(user_id, server_type)
-);
-
-CREATE TABLE IF NOT EXISTS oauth2_state (
-	id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-	user_id     TEXT NOT NULL,
-	server_type TEXT NOT NULL,
-	state       TEXT NOT NULL UNIQUE,
-	expires_at  TEXT NOT NULL,
-	created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS catalog_suggestions (
-	id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-	user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	catalog_id  TEXT NOT NULL REFERENCES default_catalog(id) ON DELETE CASCADE,
-	status      TEXT NOT NULL DEFAULT 'pending',
-	resolved_at TEXT,
-	created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE(user_id, catalog_id)
-);
-`

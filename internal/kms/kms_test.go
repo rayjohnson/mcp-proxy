@@ -7,7 +7,7 @@ import (
 )
 
 func TestLocalKMSRoundtrip(t *testing.T) {
-	c, err := New(context.Background(), "local")
+	c, err := New(context.Background(), "local", "")
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestLocalKMSRoundtrip(t *testing.T) {
 }
 
 func TestLocalKMSDistinctCiphertexts(t *testing.T) {
-	c, err := New(context.Background(), "local")
+	c, err := New(context.Background(), "local", "")
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestLocalKMSDistinctCiphertexts(t *testing.T) {
 }
 
 func TestLocalKMSBadCiphertext(t *testing.T) {
-	c, err := New(context.Background(), "local")
+	c, err := New(context.Background(), "local", "")
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

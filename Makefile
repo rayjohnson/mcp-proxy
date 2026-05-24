@@ -1,4 +1,17 @@
-BIN := bin/server
+BIN          := bin/mcp-proxy
+VERSION      := $(shell cat VERSION)
+_BRANCH      := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
+_BRANCH_SLUG := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null \
+                  | tr '[:upper:]' '[:lower:]' \
+                  | tr -cs 'a-z0-9' '-' \
+                  | cut -c1-20 \
+                  | sed 's/-*$$//')
+
+ifeq ($(_BRANCH),main)
+BUILD_VERSION := v$(VERSION)
+else
+BUILD_VERSION := v$(VERSION)-$(_BRANCH_SLUG)
+endif
 
 # Generate a stable local KMS key once and write it to .env.local.
 # 32 random bytes as hex = 64 chars.
@@ -6,10 +19,11 @@ BIN := bin/server
 	@printf 'LOCAL_KMS_KEY=%s\nDB_DSN=postgres://mcpproxy:devpassword@localhost:5432/mcpproxy\nKMS_KEY_NAME=local\nBASE_URL=http://localhost:8080\nPORT=8080\nLOCAL_MODE=false\n' \
 	  "$$(openssl rand -hex 32)" > .env.local
 	@echo "Created .env.local with a random LOCAL_KMS_KEY"
+	@echo "Note: for local mode use 'make run-local' (port 9753) instead"
 
 .PHONY: build
 build:
-	go build -o $(BIN) ./cmd/server
+	go build -ldflags "-X main.version=$(BUILD_VERSION)" -o $(BIN) ./cmd/mcp-proxy
 
 .PHONY: test
 test:
@@ -48,7 +62,7 @@ run: build .env.local db-up
 .PHONY: run-local
 run-local: build
 	@LOCAL_MODE=true KMS_KEY_NAME=local LOCAL_KMS_KEY=$$(openssl rand -hex 32) \
-	  BASE_URL=http://localhost:8080 PORT=8080 ./$(BIN)
+	  BASE_URL=http://localhost:9753 PORT=9753 ./$(BIN)
 
 .PHONY: lint
 lint:

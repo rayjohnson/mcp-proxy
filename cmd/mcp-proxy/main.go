@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,7 +20,14 @@ import (
 	"github.com/rayjohnson/mcp-proxy/internal/upstream"
 )
 
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println("mcp-proxy " + version)
+		os.Exit(0)
+	}
+
 	ctx := context.Background()
 
 	cfg, err := config.Load()
@@ -33,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	kmsClient, err := kms.New(ctx, cfg.KMSKeyName)
+	kmsClient, err := kms.New(ctx, cfg.KMSKeyName, cfg.LocalKMSKey)
 	if err != nil {
 		slog.Error("init kms", "err", err)
 		os.Exit(1)
