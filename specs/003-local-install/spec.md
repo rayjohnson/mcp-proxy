@@ -92,7 +92,8 @@ The user can completely remove the proxy — binary, service registration, and o
 - What happens if the binary download is interrupted mid-transfer?
 - What happens on macOS versions that require explicit approval to load login services?
 - What if the user's machine is Apple Silicon vs Intel — does the correct binary get downloaded?
-- What if a new release is incompatible with an existing database schema?
+- What if a new release requires a database schema migration — is it applied automatically on startup?
+- What happens if a migration fails partway through?
 
 ## Requirements *(mandatory)*
 
@@ -108,6 +109,8 @@ The user can completely remove the proxy — binary, service registration, and o
 - **FR-008**: An uninstall script (or uninstall flag on the install script) MUST remove the binary and deregister the login service, with an option to also delete user data.
 - **FR-009**: The release pipeline MUST produce pre-built binaries for macOS (Apple Silicon and Intel) on each tagged release.
 - **FR-010**: The install script MUST validate the downloaded binary (checksum or signature) before installing it.
+- **FR-011**: Each release binary MUST embed its version number so the install script can compare the installed version against the latest release and skip the download when already up to date.
+- **FR-012**: The proxy MUST apply any pending database schema migrations automatically on startup, without requiring user action or causing data loss, so that upgrading the binary never leaves the database in an unusable state.
 
 ### Key Entities
 
@@ -125,6 +128,7 @@ The user can completely remove the proxy — binary, service registration, and o
 - **SC-003**: The proxy starts automatically within 30 seconds of user login with no manual action required.
 - **SC-004**: The install command works on both Apple Silicon and Intel Macs without user intervention.
 - **SC-005**: Zero port conflicts with the default configuration on a standard developer machine running common tools.
+- **SC-006**: A user upgrading from any prior release loses zero data — all catalog entries, credentials, and settings are intact after the upgrade completes.
 
 ## Assumptions
 
