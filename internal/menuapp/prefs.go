@@ -3,26 +3,15 @@
 package menuapp
 
 import (
-	webview "github.com/webview/webview_go"
+	"log/slog"
+	"os/exec"
 )
 
-var activePrefs webview.WebView
-
-// OpenPreferences opens the Preferences window showing the proxy dashboard.
-// If a window is already open, it is brought to the foreground.
+// OpenPreferences opens the proxy dashboard in the default browser.
+// A native WebKit window cannot be used here because systray already occupies
+// the main thread with its NSRunLoop, and NSWindow requires the main thread.
 func OpenPreferences(port string) {
-	if activePrefs != nil {
-		// Window already open — bring it to front by running an empty dispatch.
-		activePrefs.Dispatch(func() {})
-		return
+	if err := exec.Command("open", "http://localhost:"+port+"/dashboard").Start(); err != nil { //nolint:gosec
+		slog.Warn("open preferences failed", "err", err)
 	}
-
-	wv := webview.New(false)
-	wv.SetTitle("mcp-proxy — Preferences")
-	wv.SetSize(960, 700, webview.HintNone)
-	wv.Navigate("http://localhost:" + port + "/dashboard")
-	activePrefs = wv
-	wv.Run()
-	wv.Destroy()
-	activePrefs = nil
 }
