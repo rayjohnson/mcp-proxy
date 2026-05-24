@@ -103,6 +103,7 @@ type UpstreamView struct {
 type DashboardData struct {
 	PageBase
 	ProxyURL  string
+	LocalMode bool
 	Available []CatalogCard
 	Connected []UpstreamView
 	Error     string
@@ -111,13 +112,14 @@ type DashboardData struct {
 // DashboardHandler serves the user dashboard with live data from the stores.
 type DashboardHandler struct {
 	userStore     dashUserStore
-	upstreamStore *store.UpstreamStore
-	catalogStore  *store.CatalogStore
+	upstreamStore store.UpstreamStoreI
+	catalogStore  store.CatalogStoreI
 	baseURL       string
+	localMode     bool
 }
 
-func NewDashboardHandler(us dashUserStore, ups *store.UpstreamStore, cs *store.CatalogStore, baseURL string) *DashboardHandler {
-	return &DashboardHandler{userStore: us, upstreamStore: ups, catalogStore: cs, baseURL: baseURL}
+func NewDashboardHandler(us dashUserStore, ups store.UpstreamStoreI, cs store.CatalogStoreI, baseURL string, localMode bool) *DashboardHandler {
+	return &DashboardHandler{userStore: us, upstreamStore: ups, catalogStore: cs, baseURL: baseURL, localMode: localMode}
 }
 
 func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +174,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "dashboard.html", DashboardData{
 		PageBase:  PageBase{IsAdmin: claims.Role == "admin"},
 		ProxyURL:  h.baseURL + "/mcp/" + user.ProxyToken,
+		LocalMode: h.localMode,
 		Available: available,
 		Connected: connected,
 		Error:     r.URL.Query().Get("error"),
@@ -199,7 +202,12 @@ func (h *DashboardHandler) ConnectPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if entry.AuthType != "api_key" {
+	if entry.Transport == "stdio" {
+		// stdio servers are auto-connected; no credential page needed.
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		return
+	}
+	if entry.AuthType != "api_key" && entry.AuthType != "pat" {
 		http.Redirect(w, r, "/api/oauth2/authorize/"+serverType, http.StatusFound) //nolint:gosec // serverType is validated against the catalog above
 		return
 	}

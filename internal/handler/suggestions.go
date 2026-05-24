@@ -8,10 +8,10 @@ import (
 )
 
 type SuggestionHandler struct {
-	suggestions *store.SuggestionStore
+	suggestions store.SuggestionStoreI
 }
 
-func NewSuggestionHandler(ss *store.SuggestionStore) *SuggestionHandler {
+func NewSuggestionHandler(ss store.SuggestionStoreI) *SuggestionHandler {
 	return &SuggestionHandler{suggestions: ss}
 }
 

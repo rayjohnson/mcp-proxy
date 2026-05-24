@@ -37,19 +37,34 @@ itself and reduces the operational surface area in a cloud deployment.
 dependency MUST include a one-sentence justification explaining the concrete problem
 it solves today.
 
-### II. Cloud-Native by Default
+### II. Dual-Deployment: Cloud-Hosted and Local
 
-MCP Proxy runs exclusively in cloud environments. Local execution, embedded databases,
-and filesystem-based persistent state are not valid architectural choices. All state
-MUST be externalized to cloud-appropriate storage. Deployment artifacts MUST be
-containerizable and stateless.
+MCP Proxy supports two deployment targets: **cloud-hosted** (the primary target,
+running in containerized cloud environments) and **local** (a single-user mode for
+personal use on a developer's machine). Each target has distinct constraints:
 
-**Rationale**: The product's core value is eliminating per-machine MCP server
-installation. A locally-runnable variant would undermine that value proposition and
-create two maintenance paths with divergent operational requirements.
+- **Cloud-hosted**: All state MUST be externalized to cloud-appropriate storage
+  (managed databases, secret managers). Deployment artifacts MUST be containerizable
+  and stateless. OAuth2 app credentials are supported.
+- **Local mode**: State MAY use an embedded database (SQLite) stored on the local
+  filesystem. stdio-based MCP servers MAY be registered. Only PAT/API key auth
+  types are permitted (no OAuth2 app registration required). The binary MUST start
+  with zero external service dependencies.
 
-**Compliance gate**: No feature MUST assume local filesystem availability or
-process-local state that cannot survive a container restart.
+Both modes share the same binary, distinguished by the `LOCAL_MODE=true` environment
+variable at startup.
+
+**Rationale**: Cloud-hosted mode provides the primary value proposition: a shared
+proxy eliminating per-machine MCP server installation for teams. Local mode extends
+this value to personal/offline use and to stdio-based MCP servers that cannot be
+hosted in the cloud. The dual-proxy model (local + hosted) lets developers access
+both shared company tools and personal local tools through a single AI tool
+configuration per endpoint.
+
+**Compliance gate**: Features that add local-mode-only behavior MUST be gated by
+`cfg.LocalMode` checks. Features that require cloud infrastructure MUST document
+that they are hosted-mode-only. Neither mode's constraints MAY be violated in the
+other.
 
 ### III. MCP Protocol Fidelity
 
@@ -140,4 +155,4 @@ practice conflicts with this document, this document governs.
 defined in `.specify/templates/plan-template.md`. Complexity violations MUST be
 documented in the Complexity Tracking table of the relevant `plan.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-23 | **Last Amended**: 2026-05-23
+**Version**: 1.1.0 | **Ratified**: 2026-05-23 | **Last Amended**: 2026-05-23

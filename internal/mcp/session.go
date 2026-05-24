@@ -18,7 +18,8 @@ type ProxySession struct {
 }
 
 type SessionDeps struct {
-	UpstreamStore *store.UpstreamStore
+	UpstreamStore store.UpstreamStoreI
+	CatalogStore  store.CatalogStoreI // for stdio entries, which are catalog-level (no per-user creds)
 	KMSDecrypt    func(ctx context.Context, ciphertext []byte) ([]byte, error)
 	AuthHeader    func(cfg *store.UpstreamConfig, plainCreds []byte) (string, error)
 	UpdateTransport func(ctx context.Context, id, transport string) error
@@ -83,7 +84,37 @@ func OpenSession(ctx context.Context, userID string, deps SessionDeps) (*ProxySe
 	}
 	wg.Wait()
 
+	// Also connect to stdio catalog entries (available to all users; no per-user creds).
+	if deps.CatalogStore != nil {
+		if err := connectStdioEntries(ctx, ps, deps.CatalogStore); err != nil {
+			slog.Warn("stdio catalog connect error", "err", err)
+		}
+	}
+
 	return ps, nil
+}
+
+// connectStdioEntries connects to all active stdio catalog entries.
+func connectStdioEntries(ctx context.Context, ps *ProxySession, cs store.CatalogStoreI) error {
+	entries, err := cs.ListActiveCatalogEntries(ctx)
+	if err != nil {
+		return fmt.Errorf("list catalog entries for stdio: %w", err)
+	}
+	for _, e := range entries {
+		if e.Transport != "stdio" {
+			continue
+		}
+		e := e // capture
+		client, err := ConnectStdio(ctx, e)
+		if err != nil {
+			slog.Warn("stdio server connect failed", "server_type", e.ServerType, "err", err)
+			continue
+		}
+		ps.mu.Lock()
+		ps.clients[e.ServerType] = client
+		ps.mu.Unlock()
+	}
+	return nil
 }
 
 // GetClient returns the upstream client for the given server type, or nil.

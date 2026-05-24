@@ -2,7 +2,7 @@
 
 {{define "content"}}
 <div class="container">
-  <h1>Your MCP Proxy</h1>
+  <h1>Your MCP Proxy {{if .LocalMode}}<span class="mode-badge mode-local">Local Mode</span>{{else}}<span class="mode-badge mode-hosted">Hosted</span>{{end}}</h1>
 
   {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
 
@@ -125,6 +125,18 @@
   }
 }</code></pre>
     </details>
+
+    {{if .LocalMode}}
+    <details class="client-setup">
+      <summary>Dual-Proxy Setup (local + company proxy)</summary>
+      <p>If your company also runs a hosted proxy, configure your AI tool with both URLs to get tools from both sources:</p>
+      <p><strong>Claude Code</strong> — run both commands:</p>
+      <pre><code>claude mcp add --transport http mcp-proxy-local {{.ProxyURL}}
+claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp/YOUR_TOKEN</code></pre>
+      <p>Replace <code>YOUR_COMPANY_PROXY</code> and <code>YOUR_TOKEN</code> with the values from your company's proxy dashboard.</p>
+      <p>Each proxy contributes its own tools. Adding a server to either proxy makes it immediately available in your AI tool.</p>
+    </details>
+    {{end}}
   </section>
 </div>
 {{end}}

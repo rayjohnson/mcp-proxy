@@ -24,8 +24,22 @@ Tool names are prefixed to avoid collisions: `github__create_issue`, `linear__cr
 - **Failure isolation** — one unreachable server doesn't break the others
 - **Background health probes** — server status kept fresh automatically
 - **Admin JSON API** — programmatic catalog management (useful for AI-assisted setup)
+- **Local mode** — run on your laptop with zero external services; SQLite storage, stdio MCP server support
 
-## Quickstart (local dev)
+## Quickstart (local mode — no cloud required)
+
+**Prerequisites**: Go 1.23+
+
+```bash
+go build -o bin/mcp-proxy ./cmd/server
+make run-local
+```
+
+Open `http://localhost:8080`, register — the first user is automatically admin. No Docker, no Postgres, no cloud account needed.
+
+See [`specs/002-local-mode-stdio/quickstart.md`](specs/002-local-mode-stdio/quickstart.md) for full local mode instructions including stdio MCP server setup.
+
+## Quickstart (hosted dev, with Postgres)
 
 **Prerequisites**: Go 1.23+, Docker (OrbStack or Docker Desktop), `golangci-lint`
 
@@ -80,12 +94,13 @@ Required environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `DB_DSN` | PostgreSQL connection string |
+| `DB_DSN` | PostgreSQL connection string (hosted mode) |
 | `KMS_KEY_NAME` | GCP KMS key resource name (or `local` for dev) |
 | `BASE_URL` | Public URL of the service (used in OAuth2 callbacks) |
 | `PORT` | Port to listen on (default `8080`) |
-| `JWT_SECRET` | Secret for signing session JWTs |
-| `LOCAL_KMS_KEY` | 32-byte hex key (dev only, when `KMS_KEY_NAME=local`) |
+| `LOCAL_KMS_KEY` | 32-byte hex key (dev/local mode, when `KMS_KEY_NAME=local`) |
+| `LOCAL_MODE` | Set to `true` for single-user local deployment (SQLite, stdio support) |
+| `DATA_DIR` | Directory for SQLite database in local mode (default: `.`) |
 
 See `deploy/service.yaml` for a Cloud Run service definition and `deploy/Dockerfile` for the container build.
 
@@ -109,9 +124,10 @@ internal/
   config/            # environment config
   handler/           # HTTP handlers and middleware
   kms/               # GCP KMS + local AES shim
-  mcp/               # MCP proxy core (aggregator, session, router)
+  mcp/               # MCP proxy core (aggregator, session, router, stdio bridge)
   oauth2client/      # OAuth2 flow + token refresh
-  store/             # Postgres data layer
+  store/             # store interfaces + Postgres implementation
+  store/sqlite/      # SQLite implementation (local mode)
   upstream/          # per-service adapters
 migrations/          # SQL migrations (applied at startup)
 specs/               # feature specifications and implementation plans

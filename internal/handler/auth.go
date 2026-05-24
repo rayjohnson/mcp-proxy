@@ -34,7 +34,7 @@ type AuthHandler struct {
 	suggestions suggestionSeeder
 }
 
-func NewAuthHandler(u *store.UserStore, c *store.CatalogStore, s *store.SuggestionStore) *AuthHandler {
+func NewAuthHandler(u store.UserStoreI, c store.CatalogStoreI, s store.SuggestionStoreI) *AuthHandler {
 	return &AuthHandler{users: u, catalog: c, suggestions: s}
 }
 

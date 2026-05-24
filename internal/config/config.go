@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -11,6 +12,11 @@ type Config struct {
 	KMSKeyName string
 	BaseURL    string
 
+	// LocalMode enables single-user local deployment with SQLite storage.
+	LocalMode bool
+	// DataDir is the directory used for mcp-proxy.db in local mode.
+	DataDir string
+
 	// JumpCloud OIDC — empty until infra team provisions it
 	OIDCIssuerURL    string
 	OIDCClientID     string
@@ -18,18 +24,28 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	localMode := os.Getenv("LOCAL_MODE") == "true"
+	dataDir := getenv("DATA_DIR", ".")
+
+	dbDSN := os.Getenv("DB_DSN")
+	if dbDSN == "" && localMode {
+		dbDSN = "file:" + filepath.Join(dataDir, "mcp-proxy.db")
+	}
+
 	cfg := &Config{
 		Port:             getenv("PORT", "8080"),
-		DBDSN:            os.Getenv("DB_DSN"),
+		DBDSN:            dbDSN,
 		KMSKeyName:       os.Getenv("KMS_KEY_NAME"),
 		BaseURL:          os.Getenv("BASE_URL"),
+		LocalMode:        localMode,
+		DataDir:          dataDir,
 		OIDCIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 		OIDCClientID:     os.Getenv("OIDC_CLIENT_ID"),
 		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
 	}
 
-	if cfg.DBDSN == "" {
-		return nil, fmt.Errorf("DB_DSN is required")
+	if !localMode && cfg.DBDSN == "" {
+		return nil, fmt.Errorf("DB_DSN is required in hosted mode")
 	}
 	if cfg.KMSKeyName == "" {
 		return nil, fmt.Errorf("KMS_KEY_NAME is required")

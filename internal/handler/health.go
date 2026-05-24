@@ -15,8 +15,8 @@ import (
 // OAuth2 token refresh for configs that are approaching expiry.
 func StartHealthProbe(
 	ctx context.Context,
-	upstreamStore *store.UpstreamStore,
-	userStore *store.UserStore,
+	upstreamStore store.UpstreamStoreI,
+	userStore store.UserStoreI,
 	oauth2Svc *oauth2client.Service,
 ) {
 	go func() {
@@ -35,8 +35,8 @@ func StartHealthProbe(
 
 func runHealthChecks(
 	ctx context.Context,
-	upstreamStore *store.UpstreamStore,
-	userStore *store.UserStore,
+	upstreamStore store.UpstreamStoreI,
+	userStore store.UserStoreI,
 	oauth2Svc *oauth2client.Service,
 ) {
 	users, err := userStore.ListAllUsers(ctx)

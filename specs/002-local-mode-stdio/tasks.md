@@ -15,8 +15,8 @@
 
 **Purpose**: Constitution amendment and new dependency
 
-- [ ] T001 Amend constitution Principle II in `.specify/memory/constitution.md` to recognize local deployment as a supported target alongside cloud-hosted (removes "cloud-only" constraint; version bump 1.0.0 → 1.1.0)
-- [ ] T002 Add `modernc.org/sqlite` to `go.mod` / `go.sum` via `go get modernc.org/sqlite`
+- [X] T001 Amend constitution Principle II in `.specify/memory/constitution.md` to recognize local deployment as a supported target alongside cloud-hosted (removes "cloud-only" constraint; version bump 1.0.0 → 1.1.0)
+- [X] T002 Add `modernc.org/sqlite` to `go.mod` / `go.sum` via `go get modernc.org/sqlite`
 
 ---
 
@@ -26,18 +26,18 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Create `internal/store/interfaces.go` — define `UserStore`, `CatalogStore`, `UpstreamStore`, `OAuth2StateStore`, `SuggestionStore` interfaces matching all existing method signatures (see data-model.md)
-- [ ] T004 Extend `internal/store/catalog.go` — add `Transport`, `Command`, `Args`, `Env` fields to `CatalogEntry` struct; update `AddCatalogEntry` signature and all scan helpers; update `catalogCols` constant
-- [ ] T005 Verify existing Postgres store types satisfy the new interfaces (compile check; no logic changes expected for `users.go`, `upstream.go`, `oauth2state.go`, `suggestions.go`)
-- [ ] T006 Create `internal/store/sqlite/db.go` — open/create SQLite DB at configured path using `modernc.org/sqlite` + `database/sql`; run full DDL schema on first connection (all tables: `users`, `default_catalog`, `upstream_configs`, `oauth2_states`, `suggestion_searches`)
-- [ ] T007 [P] Create `internal/store/sqlite/users.go` — SQLite `UserStore` implementation (all methods from interface; use `?` placeholders, `CURRENT_TIMESTAMP`, `database/sql`)
-- [ ] T008 [P] Create `internal/store/sqlite/catalog.go` — SQLite `CatalogStore` implementation (includes `transport`, `command`, `args`, `env` columns; JSON encode/decode `args` and `env` fields as TEXT)
-- [ ] T009 [P] Create `internal/store/sqlite/upstream.go` — SQLite `UpstreamStore` implementation
-- [ ] T010 [P] Create `internal/store/sqlite/oauth2state.go` — SQLite `OAuth2StateStore` implementation
-- [ ] T011 [P] Create `internal/store/sqlite/suggestions.go` — SQLite `SuggestionStore` implementation
-- [ ] T012 Update `internal/config/config.go` — add `LocalMode bool` (from `LOCAL_MODE` env), `DataDir string` (from `DATA_DIR` env, default `.`); make `DB_DSN` optional when `LocalMode=true` (auto-default to `file:{DataDir}/mcp-proxy.db`)
-- [ ] T013 Create `db/migrations/0004_add_stdio_columns.sql` — Postgres migration adding `transport TEXT NOT NULL DEFAULT 'http'`, `command TEXT`, `args JSONB NOT NULL DEFAULT '[]'`, `env JSONB NOT NULL DEFAULT '{}'` to `default_catalog`
-- [ ] T014 Update `cmd/server/main.go` — store factory: if `cfg.LocalMode`, open SQLite and construct sqlite store types; otherwise construct existing Postgres store types; wire both paths into the existing handler constructors using the new interfaces
+- [X] T003 Create `internal/store/interfaces.go` — define `UserStore`, `CatalogStore`, `UpstreamStore`, `OAuth2StateStore`, `SuggestionStore` interfaces matching all existing method signatures (see data-model.md)
+- [X] T004 Extend `internal/store/catalog.go` — add `Transport`, `Command`, `Args`, `Env` fields to `CatalogEntry` struct; update `AddCatalogEntry` signature and all scan helpers; update `catalogCols` constant
+- [X] T005 Verify existing Postgres store types satisfy the new interfaces (compile check; no logic changes expected for `users.go`, `upstream.go`, `oauth2state.go`, `suggestions.go`)
+- [X] T006 Create `internal/store/sqlite/db.go` — open/create SQLite DB at configured path using `modernc.org/sqlite` + `database/sql`; run full DDL schema on first connection (all tables: `users`, `default_catalog`, `upstream_configs`, `oauth2_states`, `suggestion_searches`)
+- [X] T007 [P] Create `internal/store/sqlite/users.go` — SQLite `UserStore` implementation (all methods from interface; use `?` placeholders, `CURRENT_TIMESTAMP`, `database/sql`)
+- [X] T008 [P] Create `internal/store/sqlite/catalog.go` — SQLite `CatalogStore` implementation (includes `transport`, `command`, `args`, `env` columns; JSON encode/decode `args` and `env` fields as TEXT)
+- [X] T009 [P] Create `internal/store/sqlite/upstream.go` — SQLite `UpstreamStore` implementation
+- [X] T010 [P] Create `internal/store/sqlite/oauth2state.go` — SQLite `OAuth2StateStore` implementation
+- [X] T011 [P] Create `internal/store/sqlite/suggestions.go` — SQLite `SuggestionStore` implementation
+- [X] T012 Update `internal/config/config.go` — add `LocalMode bool` (from `LOCAL_MODE` env), `DataDir string` (from `DATA_DIR` env, default `.`); make `DB_DSN` optional when `LocalMode=true` (auto-default to `file:{DataDir}/mcp-proxy.db`)
+- [X] T013 Create `db/migrations/0004_add_stdio_columns.sql` — Postgres migration adding `transport TEXT NOT NULL DEFAULT 'http'`, `command TEXT`, `args JSONB NOT NULL DEFAULT '[]'`, `env JSONB NOT NULL DEFAULT '{}'` to `default_catalog`
+- [X] T014 Update `cmd/server/main.go` — store factory: if `cfg.LocalMode`, open SQLite and construct sqlite store types; otherwise construct existing Postgres store types; wire both paths into the existing handler constructors using the new interfaces
 
 **Checkpoint**: `go build ./...` succeeds with both Postgres and SQLite paths wired; `LOCAL_MODE=true go run ./cmd/server` starts without error.
 
@@ -49,9 +49,9 @@
 
 **Independent Test**: `LOCAL_MODE=true KMS_KEY_NAME=local LOCAL_KMS_KEY=$(openssl rand -hex 32) BASE_URL=http://localhost:8080 go run ./cmd/server` → browser to `http://localhost:8080` → register as first user → automatically granted admin → add a GitHub PAT catalog entry → retrieve proxy token → `curl http://localhost:8080/health` returns 200.
 
-- [ ] T015 [US1] Update `web/templates/dashboard.html` — add local/hosted mode badge near the page header; template receives `LocalMode bool` from `pages.go` dashboard data struct
-- [ ] T016 [US1] Update `internal/handler/pages.go` — pass `LocalMode` from config into the `DashboardData` struct rendered to `dashboard.html`
-- [ ] T017 [US1] Update `Makefile` — add `run-local` target: `LOCAL_MODE=true KMS_KEY_NAME=local BASE_URL=http://localhost:8080 go run ./cmd/server` (no Docker, no db-up dependency); update `.env.local` target to include `LOCAL_MODE=true`
+- [X] T015 [US1] Update `web/templates/dashboard.html` — add local/hosted mode badge near the page header; template receives `LocalMode bool` from `pages.go` dashboard data struct
+- [X] T016 [US1] Update `internal/handler/pages.go` — pass `LocalMode` from config into the `DashboardData` struct rendered to `dashboard.html`
+- [X] T017 [US1] Update `Makefile` — add `run-local` target: `LOCAL_MODE=true KMS_KEY_NAME=local BASE_URL=http://localhost:8080 go run ./cmd/server` (no Docker, no db-up dependency); update `.env.local` target to include `LOCAL_MODE=true`
 
 **Checkpoint**: `make run-local` starts server; first registration is admin; catalog add with PAT works; dashboard shows "Local Mode" badge.
 
@@ -63,10 +63,10 @@
 
 **Independent Test**: Register a catalog entry with `transport=stdio`, `command=npx`, `args=["-y","@modelcontextprotocol/server-filesystem","/tmp"]`; connect an AI tool to the proxy token URL; list tools → filesystem tools appear; call `read_file` on an existing file → response returned correctly.
 
-- [ ] T018 [US2] Create `internal/mcp/stdio.go` — `ConnectStdio(ctx, entry *store.CatalogEntry) (*UpstreamClient, error)` function that builds `exec.Command(entry.Command, entry.Args...)` with `entry.Env` merged into the process environment, wraps it in `mcp.CommandTransport`, connects and returns an `UpstreamClient`
-- [ ] T019 [US2] Update `internal/mcp/aggregator.go` — in the section that connects to upstream servers, branch on `entry.Transport`: call `ConnectStdio` for `"stdio"` entries, existing `Connect` for `"http"` entries
-- [ ] T020 [US2] Update `internal/upstream/registry.go` (or the adapter lookup path) — for stdio-type entries, bypass the `Adapter.AuthHeader()` call (stdio servers have no HTTP auth header); ensure the nil-adapter case is handled cleanly without a panic
-- [ ] T021 [US2] Update `internal/handler/upstream.go` — for stdio catalog entries, the user's credential prompt (PAT entry page) should be skipped or show a "no credentials needed" message since stdio auth type is `"none"`
+- [X] T018 [US2] Create `internal/mcp/stdio.go` — `ConnectStdio(ctx, entry *store.CatalogEntry) (*UpstreamClient, error)` function that builds `exec.Command(entry.Command, entry.Args...)` with `entry.Env` merged into the process environment, wraps it in `mcp.CommandTransport`, connects and returns an `UpstreamClient`
+- [X] T019 [US2] Update `internal/mcp/aggregator.go` — in the section that connects to upstream servers, branch on `entry.Transport`: call `ConnectStdio` for `"stdio"` entries, existing `Connect` for `"http"` entries
+- [X] T020 [US2] Update `internal/upstream/registry.go` (or the adapter lookup path) — for stdio-type entries, bypass the `Adapter.AuthHeader()` call (stdio servers have no HTTP auth header); ensure the nil-adapter case is handled cleanly without a panic
+- [X] T021 [US2] Update `internal/handler/upstream.go` — for stdio catalog entries, the user's credential prompt (PAT entry page) should be skipped or show a "no credentials needed" message since stdio auth type is `"none"`
 
 **Checkpoint**: After T018–T021, running `make run-local` and registering a filesystem stdio server allows an MCP client to list its tools via the proxy.
 
@@ -78,9 +78,9 @@
 
 **Independent Test**: In local mode, POST `/api/admin/catalog` with `auth_type=oauth2` → `400` with message containing "local mode". In hosted mode, POST with `transport=stdio` → `400` with message containing "hosted mode".
 
-- [ ] T022 [US3] Update `internal/handler/admin.go` — `AddCatalogEntryAPI`: add mode-aware validation: (1) if `cfg.LocalMode && req.AuthType == "oauth2"` → 400 error; (2) if `!cfg.LocalMode && req.Transport == "stdio"` → 400 error; (3) if `req.Transport == "stdio" && req.Command == ""` → 400 error; pass `LocalMode` into handler via constructor
-- [ ] T023 [US3] Add `ModeHandler` to `internal/handler/admin.go` — `GET /api/admin/mode` returns `{"mode":"local"}` or `{"mode":"hosted"}` based on `cfg.LocalMode`
-- [ ] T024 [US3] Register `GET /api/admin/mode` route in `cmd/server/main.go` — no admin middleware required (public endpoint)
+- [X] T022 [US3] Update `internal/handler/admin.go` — `AddCatalogEntryAPI`: add mode-aware validation: (1) if `cfg.LocalMode && req.AuthType == "oauth2"` → 400 error; (2) if `!cfg.LocalMode && req.Transport == "stdio"` → 400 error; (3) if `req.Transport == "stdio" && req.Command == ""` → 400 error; pass `LocalMode` into handler via constructor
+- [X] T023 [US3] Add `ModeHandler` to `internal/handler/admin.go` — `GET /api/admin/mode` returns `{"mode":"local"}` or `{"mode":"hosted"}` based on `cfg.LocalMode`
+- [X] T024 [US3] Register `GET /api/admin/mode` route in `cmd/server/main.go` — no admin middleware required (public endpoint)
 
 **Checkpoint**: Unit-testable via direct handler call; integration test via curl in both modes.
 
@@ -92,8 +92,8 @@
 
 **Independent Test**: Visit `http://localhost:8080` dashboard → "Connect Your AI Tools" section → Claude Code snippet includes two `claude mcp add` commands (one for local, one for company proxy with placeholder).
 
-- [ ] T025 [US4] Update `web/templates/dashboard.html` setup guide — add a "Dual-Proxy Setup" subsection to the Claude Code collapsible showing both `claude mcp add` commands; local proxy URL uses `{{.ProxyURL}}`; company proxy URL uses a `{{/* COMPANY_URL_PLACEHOLDER */}}` comment with explanatory note
-- [ ] T026 [US4] Update `web/static/style.css` if needed to style the dual-proxy subsection consistently with existing `.client-setup` elements
+- [X] T025 [US4] Update `web/templates/dashboard.html` setup guide — add a "Dual-Proxy Setup" subsection to the Claude Code collapsible showing both `claude mcp add` commands; local proxy URL uses `{{.ProxyURL}}`; company proxy URL uses a `{{/* COMPANY_URL_PLACEHOLDER */}}` comment with explanatory note
+- [X] T026 [US4] Update `web/static/style.css` if needed to style the dual-proxy subsection consistently with existing `.client-setup` elements
 
 **Checkpoint**: Dashboard renders without template errors in both local and hosted mode.
 
@@ -101,9 +101,9 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T027 [P] Update `README.md` — add "Local Mode" section documenting `make run-local`, environment variables (`LOCAL_MODE`, `DATA_DIR`), and a link to `specs/002-local-mode-stdio/quickstart.md`
-- [ ] T028 Run `make lint` and fix any issues (run `make lint-fix` for auto-fixable items)
-- [ ] T029 Run `make test` and verify all existing tests still pass
+- [X] T027 [P] Update `README.md` — add "Local Mode" section documenting `make run-local`, environment variables (`LOCAL_MODE`, `DATA_DIR`), and a link to `specs/002-local-mode-stdio/quickstart.md`
+- [X] T028 Run `make lint` and fix any issues (run `make lint-fix` for auto-fixable items)
+- [X] T029 Run `make test` and verify all existing tests still pass
 - [ ] T030 Manual smoke test against `quickstart.md` — follow all 7 steps end-to-end in local mode; confirm stdio filesystem server is callable
 
 ---

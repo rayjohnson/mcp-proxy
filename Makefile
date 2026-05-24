@@ -3,7 +3,7 @@ BIN := bin/server
 # Generate a stable local KMS key once and write it to .env.local.
 # 32 random bytes as hex = 64 chars.
 .env.local:
-	@printf 'LOCAL_KMS_KEY=%s\nDB_DSN=postgres://mcpproxy:devpassword@localhost:5432/mcpproxy\nKMS_KEY_NAME=local\nBASE_URL=http://localhost:8080\nPORT=8080\n' \
+	@printf 'LOCAL_KMS_KEY=%s\nDB_DSN=postgres://mcpproxy:devpassword@localhost:5432/mcpproxy\nKMS_KEY_NAME=local\nBASE_URL=http://localhost:8080\nPORT=8080\nLOCAL_MODE=false\n' \
 	  "$$(openssl rand -hex 32)" > .env.local
 	@echo "Created .env.local with a random LOCAL_KMS_KEY"
 
@@ -44,6 +44,11 @@ db-reset: check-docker
 .PHONY: run
 run: build .env.local db-up
 	@set -a && . ./.env.local && set +a && ./$(BIN)
+
+.PHONY: run-local
+run-local: build
+	@LOCAL_MODE=true KMS_KEY_NAME=local LOCAL_KMS_KEY=$$(openssl rand -hex 32) \
+	  BASE_URL=http://localhost:8080 PORT=8080 ./$(BIN)
 
 .PHONY: lint
 lint:
