@@ -8,7 +8,3 @@ linters:
     gosec:
       excludes:
         - G104  # Errors unhandled — covered by errcheck
-  exclusions:
-    paths:
-      - cmd/mcp-proxy-menu
-      - internal/menuapp
