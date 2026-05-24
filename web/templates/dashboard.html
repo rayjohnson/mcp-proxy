@@ -1,0 +1,130 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container">
+  <h1>Your MCP Proxy</h1>
+
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+  <section class="proxy-endpoint">
+    <h2>Your Proxy Endpoint</h2>
+    <p>Use this URL in your AI tools (Claude, Cursor, etc.):</p>
+    <code id="proxy-url">{{.ProxyURL}}</code>
+    <button onclick="navigator.clipboard.writeText('{{.ProxyURL}}')">Copy</button>
+  </section>
+
+  {{if .Available}}
+  <section>
+    <h2>Available MCP Servers</h2>
+    <div class="catalog-grid">
+      {{range .Available}}
+      <div class="catalog-card">
+        <h3>{{.DisplayName}}</h3>
+        {{if .Description}}<p>{{.Description}}</p>{{end}}
+        {{if eq .AuthType "oauth2"}}
+        <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Connect</a>
+        {{else}}
+        <a href="/connect/{{.ServerType}}" class="button">Connect</a>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+
+  {{if .Connected}}
+  <section>
+    <h2>Connected Servers</h2>
+    <table>
+      <thead>
+        <tr><th>Server</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {{range .Connected}}
+        {{template "server-row" .}}
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+  {{end}}
+
+  {{if and (eq (len .Available) 0) (eq (len .Connected) 0)}}
+  <section>
+    <p>No MCP servers are available yet. Ask your administrator to add servers to the catalog.</p>
+  </section>
+  {{end}}
+
+  <section class="setup-guide">
+    <h2>Connect Your AI Tools</h2>
+    <p class="hint">Paste your proxy URL into any MCP-compatible AI tool. You'll only see tools from servers you've connected above.</p>
+
+    <details class="client-setup">
+      <summary>Claude Code (CLI)</summary>
+      <p>Run once in your terminal:</p>
+      <pre><code>claude mcp add --transport http mcp-proxy {{.ProxyURL}}</code></pre>
+      <p>Or add manually to <code>~/.claude.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Claude Desktop</summary>
+      <p>Edit your config file and restart Claude Desktop:</p>
+      <p><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>
+         <strong>Windows:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Cursor</summary>
+      <p>Create or edit <code>.cursor/mcp.json</code> in your project root:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>VS Code (GitHub Copilot)</summary>
+      <p>Create or edit <code>.vscode/mcp.json</code> in your project root:</p>
+      <pre><code>{
+  "servers": {
+    "mcp-proxy": {
+      "type": "http",
+      "url": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup">
+      <summary>Windsurf</summary>
+      <p>Open <strong>Windsurf Settings → MCP</strong> and add a new server, or edit <code>~/.codeium/windsurf/mcp_config.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "serverUrl": "{{.ProxyURL}}"
+    }
+  }
+}</code></pre>
+    </details>
+  </section>
+</div>
+{{end}}

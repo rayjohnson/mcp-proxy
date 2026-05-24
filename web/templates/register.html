@@ -1,0 +1,14 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container auth-form">
+  <h1>Create Account</h1>
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="POST" action="/api/auth/register">
+    <label>Email    <input type="email"    name="email"    required autofocus></label>
+    <label>Password <input type="password" name="password" required minlength="8"></label>
+    <button type="submit">Create Account</button>
+  </form>
+  <p><a href="/login">Already have an account?</a></p>
+</div>
+{{end}}

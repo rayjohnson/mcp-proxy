@@ -1,0 +1,77 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container">
+  <h1>MCP Server Catalog</h1>
+
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+  <section>
+    <h2>Add MCP Server</h2>
+    <form method="POST" action="/admin/catalog" class="admin-form">
+      <label>Internal ID
+        <input type="text" name="server_type" required placeholder="e.g. linear"
+               pattern="[a-z0-9_-]+" title="Lowercase letters, numbers, hyphens, underscores">
+      </label>
+      <label>Display Name
+        <input type="text" name="display_name" required placeholder="e.g. Linear">
+      </label>
+      <label>Server URL
+        <input type="url" name="server_url" required placeholder="https://mcp.linear.app/mcp">
+      </label>
+      <label>Description
+        <input type="text" name="description" placeholder="Optional short description">
+      </label>
+      <label>Auth Type
+        <select name="auth_type" id="auth-type" onchange="toggleOAuth(this.value)" required>
+          <option value="api_key">API Key</option>
+          <option value="oauth2">OAuth2</option>
+        </select>
+      </label>
+      <div id="oauth-fields" style="display:none">
+        <label>OAuth2 Client ID
+          <input type="text" name="oauth_client_id" placeholder="Client ID from the service">
+        </label>
+        <label>OAuth2 Client Secret
+          <input type="password" name="oauth_client_secret" placeholder="Client secret from the service">
+        </label>
+      </div>
+      <button type="submit">Add to Catalog</button>
+    </form>
+    <script>
+      function toggleOAuth(val) {
+        document.getElementById('oauth-fields').style.display = val === 'oauth2' ? 'block' : 'none';
+      }
+    </script>
+  </section>
+
+  <section>
+    <h2>Active Servers</h2>
+    {{if .Entries}}
+    <table>
+      <thead>
+        <tr><th>Name</th><th>ID</th><th>Auth</th><th>URL</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{range .Entries}}
+        <tr>
+          <td>{{.DisplayName}}</td>
+          <td><code>{{.ServerType}}</code></td>
+          <td>{{.AuthType}}</td>
+          <td><a href="{{.ServerURL}}" target="_blank" rel="noopener">{{.ServerURL}}</a></td>
+          <td>
+            <form method="POST" action="/admin/catalog/{{.ID}}/remove" style="display:inline"
+                  onsubmit="return confirm('Remove {{.DisplayName}} from catalog?')">
+              <button type="submit" class="danger">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p>No servers in the catalog yet.</p>
+    {{end}}
+  </section>
+</div>
+{{end}}

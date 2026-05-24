@@ -1,0 +1,36 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container">
+  <h1>Users</h1>
+
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+
+  <table>
+    <thead>
+      <tr><th>Email</th><th>Role</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {{range .Users}}
+      <tr>
+        <td>{{.Email}}</td>
+        <td><span class="role-badge role-{{.Role}}">{{.Role}}</span></td>
+        <td>
+          {{if eq .Role "developer"}}
+          <form method="POST" action="/admin/users/{{.ID}}/role" style="display:inline">
+            <input type="hidden" name="role" value="admin">
+            <button type="submit">Make Admin</button>
+          </form>
+          {{else}}
+          <form method="POST" action="/admin/users/{{.ID}}/role" style="display:inline">
+            <input type="hidden" name="role" value="developer">
+            <button type="submit" class="danger">Remove Admin</button>
+          </form>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

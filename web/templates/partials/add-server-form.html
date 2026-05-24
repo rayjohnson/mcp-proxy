@@ -1,0 +1,29 @@
+{{define "add-server-form"}}
+<form id="add-server-form">
+  <label>
+    Service Type
+    <select name="server_type" hx-get="/api/upstream/auth-type"
+            hx-target="#auth-fields" hx-trigger="change" required>
+      <option value="">-- select --</option>
+      <option value="github">GitHub</option>
+      <option value="notion">Notion</option>
+      <option value="linear">Linear</option>
+      <option value="cloudflare">Cloudflare</option>
+      <option value="googlecloud">Google Cloud</option>
+    </select>
+  </label>
+  <label>Server URL <input type="url" name="server_url" required placeholder="https://..."></label>
+
+  <div id="auth-fields">
+    {{/* Populated by hx-get based on auth type */}}
+    <label>API Key <input type="password" name="api_key"></label>
+    <button type="submit"
+            hx-post="/api/upstream"
+            hx-target="#server-list"
+            hx-swap="beforeend"
+            hx-on::after-request="document.getElementById('add-server-form').reset()">
+      Add Server
+    </button>
+  </div>
+</form>
+{{end}}

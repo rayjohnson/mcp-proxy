@@ -1,0 +1,18 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="container auth-form">
+  <h1>Connect {{.DisplayName}}</h1>
+  {{if .Description}}<p class="hint">{{.Description}}</p>{{end}}
+  {{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+  <form method="POST" action="/api/upstream/connect">
+    <input type="hidden" name="catalog_id" value="{{.CatalogID}}">
+    <label>API Key
+      <input type="password" name="api_key" required autofocus
+             placeholder="Paste your {{.DisplayName}} API key">
+    </label>
+    <button type="submit">Connect</button>
+  </form>
+  <p><a href="/dashboard">Cancel</a></p>
+</div>
+{{end}}

@@ -1,0 +1,35 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mcp-proxy
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/cloudsql-instances: "${GCP_PROJECT}:${GCP_REGION}:mcp-proxy-db"
+    spec:
+      serviceAccountName: mcp-proxy-sa@${GCP_PROJECT}.iam.gserviceaccount.com
+      containers:
+        - image: ${IMAGE}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-proxy-db-dsn
+                  key: latest
+            - name: KMS_KEY_NAME
+              value: "projects/${GCP_PROJECT}/locations/${GCP_REGION}/keyRings/mcp-proxy/cryptoKeys/credential-key"
+            - name: BASE_URL
+              value: "${BASE_URL}"
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi

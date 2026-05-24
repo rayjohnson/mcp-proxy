@@ -1,0 +1,22 @@
+{{define "server-row"}}
+<tr id="server-row-{{.ID}}">
+  <td>{{.DisplayName}}</td>
+  <td>
+    <span class="status-badge status-{{.Status}}"
+          hx-get="/api/upstream/{{.ID}}/status"
+          hx-trigger="every 30s"
+          hx-swap="outerHTML">
+      {{.Status}}
+    </span>
+  </td>
+  <td>
+    {{if eq .Status "reauth_required"}}
+    <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Re-authorize</a>
+    {{end}}
+    <form method="POST" action="/api/upstream/{{.ID}}/disconnect" style="display:inline"
+          onsubmit="return confirm('Remove {{.DisplayName}}?')">
+      <button type="submit" class="danger">Remove</button>
+    </form>
+  </td>
+</tr>
+{{end}}
