@@ -126,7 +126,7 @@ See `deploy/service.yaml` for a Cloud Run service definition and `deploy/Dockerf
 ## Project structure
 
 ```
-cmd/server/          # main entry point
+cmd/mcp-proxy/       # main entry point
 internal/
   auth/              # JWT + bcrypt
   catalog/           # catalog service

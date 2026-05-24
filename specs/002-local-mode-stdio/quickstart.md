@@ -14,7 +14,7 @@ This guide covers running the proxy locally on your laptop — no cloud account,
 ## 1. Build the binary
 
 ```bash
-go build -o bin/mcp-proxy ./cmd/server
+go build -o bin/mcp-proxy ./cmd/mcp-proxy
 ```
 
 ---
