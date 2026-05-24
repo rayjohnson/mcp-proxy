@@ -74,13 +74,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify VERSION file exists
-        run: |
-          if [ ! -f VERSION ]; then
-            echo "::error file=VERSION::VERSION file is missing. Create one in the repo root (e.g. echo '0.1.0' > VERSION)."
-            exit 1
-          fi
-
       - name: Skip — only exempt paths changed
         if: needs.detect-changes.outputs.code_changed == 'false'
         run: echo "Only exempt paths changed — version bump not required."
@@ -88,6 +81,10 @@ jobs:
       - name: Verify VERSION is bumped above main
         if: needs.detect-changes.outputs.code_changed == 'true'
         run: |
+          if [ ! -f VERSION ]; then
+            echo "::error file=VERSION::VERSION file is missing. Create one in the repo root (e.g. echo '0.1.0' > VERSION)."
+            exit 1
+          fi
           BRANCH_VERSION=$(cat VERSION)
           MAIN_VERSION=$(git show origin/main:VERSION 2>/dev/null || echo "0.0.0")
           echo "Branch VERSION : $BRANCH_VERSION"
