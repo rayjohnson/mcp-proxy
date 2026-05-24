@@ -16,7 +16,7 @@ import (
 type tokenCreds struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
-	Expiry       time.Time `json:"expiry,omitempty"`
+	Expiry       time.Time `json:"expiry"`
 }
 
 // RefreshIfExpired checks whether the stored OAuth2 token is within 5 minutes

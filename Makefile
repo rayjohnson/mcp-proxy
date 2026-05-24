@@ -49,6 +49,14 @@ run: build .env.local db-up
 lint:
 	golangci-lint run ./...
 
+.PHONY: lint-fix
+lint-fix:
+	golangci-lint run --fix ./...
+
+.PHONY: vuln
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
 .PHONY: clean
 clean:
 	rm -f $(BIN)

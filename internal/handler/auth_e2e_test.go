@@ -210,7 +210,7 @@ func TestRegisterSetsSessionCookie(t *testing.T) {
 	if sessionCookie == nil {
 		t.Fatal("no session cookie in register response")
 	}
-	if sessionCookie.HttpOnly != true {
+	if !sessionCookie.HttpOnly {
 		t.Error("session cookie should be HttpOnly")
 	}
 }

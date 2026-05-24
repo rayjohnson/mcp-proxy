@@ -52,9 +52,9 @@ func AggregateTools(ctx context.Context, clients map[string]*sdkmcp.ClientSessio
 // ParseServerType extracts the server_type from a prefixed tool name.
 // e.g. "github__search_repos" → "github", "search_repos"
 func ParseServerType(prefixedName string) (serverType, originalName string, err error) {
-	idx := strings.Index(prefixedName, "__")
-	if idx < 0 {
+	serverType, originalName, ok := strings.Cut(prefixedName, "__")
+	if !ok {
 		return "", "", fmt.Errorf("tool name %q has no server type prefix", prefixedName)
 	}
-	return prefixedName[:idx], prefixedName[idx+2:], nil
+	return serverType, originalName, nil
 }

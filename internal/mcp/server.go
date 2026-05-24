@@ -59,7 +59,6 @@ func buildMCPServer(ctx context.Context, ps *ProxySession) *sdkmcp.Server {
 	}
 
 	for _, pt := range tools {
-		pt := pt
 		server.AddTool(pt.Tool, func(ctx context.Context, req *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
 			return RouteToolCall(ctx, ps, req)
 		})
