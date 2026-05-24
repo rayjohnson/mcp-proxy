@@ -259,10 +259,6 @@ cat > "$PLIST_PATH" <<EOF
     <key>ProgramArguments</key>
     <array>
         <string>${BINARY_PATH}</string>
-        <string>--port</string>
-        <string>${PORT}</string>
-        <string>--data-dir</string>
-        <string>${DATA_DIR}</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -274,6 +270,10 @@ cat > "$PLIST_PATH" <<EOF
         <string>true</string>
         <key>KMS_KEY_NAME</key>
         <string>local</string>
+        <key>PORT</key>
+        <string>${PORT}</string>
+        <key>DATA_DIR</key>
+        <string>${DATA_DIR}</string>
         <key>BASE_URL</key>
         <string>http://localhost:${PORT}</string>
     </dict>
