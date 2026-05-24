@@ -10,7 +10,7 @@ BIN := bin/mcp-proxy
 
 .PHONY: build
 build:
-	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o $(BIN) ./cmd/server
+	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o $(BIN) ./cmd/mcp-proxy
 
 .PHONY: test
 test:
