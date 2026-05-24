@@ -161,7 +161,8 @@ fi
 # ---------------------------------------------------------------------------
 # Download and verify
 # ---------------------------------------------------------------------------
-ARCHIVE_NAME="${BINARY_NAME}_${INSTALL_VERSION}_darwin_${GOARCH}.tar.gz"
+VERSION_NUM="${INSTALL_VERSION#v}"
+ARCHIVE_NAME="${BINARY_NAME}_${VERSION_NUM}_darwin_${GOARCH}.tar.gz"
 BASE_URL="https://github.com/${REPO}/releases/download/${INSTALL_VERSION}"
 TMP_DIR="$(mktemp -d)"
 
