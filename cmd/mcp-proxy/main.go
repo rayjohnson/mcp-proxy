@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/rayjohnson/mcp-proxy/internal/store"
 	sqstore "github.com/rayjohnson/mcp-proxy/internal/store/sqlite"
 	"github.com/rayjohnson/mcp-proxy/internal/upstream"
+	"github.com/rayjohnson/mcp-proxy/web"
 )
 
 var version = "dev"
@@ -36,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := handler.InitTemplates("web/templates"); err != nil {
+	if err := handler.InitTemplates(web.FS); err != nil {
 		slog.Error("init templates", "err", err)
 		os.Exit(1)
 	}
@@ -203,8 +205,13 @@ func main() {
 	mux.Handle("GET /connect/{server_type}",
 		handler.AuthMiddleware(http.HandlerFunc(dashHandler.ConnectPage)))
 
-	// Static files
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	// Static files (embedded)
+	staticFS, err := fs.Sub(web.FS, "static")
+	if err != nil {
+		slog.Error("init static FS", "err", err)
+		os.Exit(1)
+	}
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// Health probes
 	mux.HandleFunc("GET /health", handler.HealthHandler)
