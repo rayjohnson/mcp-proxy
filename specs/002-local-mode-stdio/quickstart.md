@@ -23,7 +23,7 @@ go build -o bin/mcp-proxy ./cmd/server
 
 ```bash
 LOCAL_MODE=true KMS_KEY_NAME=local LOCAL_KMS_KEY=$(openssl rand -hex 32) \
-  BASE_URL=http://localhost:8080 ./bin/mcp-proxy
+  BASE_URL=http://localhost:9753 ./bin/mcp-proxy
 ```
 
 Or copy `.env.local` and add `LOCAL_MODE=true`:
@@ -40,7 +40,7 @@ The proxy creates `mcp-proxy.db` (SQLite) in the current directory on first run.
 
 ## 3. Create your admin account
 
-Open `http://localhost:8080` in a browser. Because this is the first time the proxy has run, the registration form will grant you admin privileges automatically.
+Open `http://localhost:9753` in a browser. Because this is the first time the proxy has run, the registration form will grant you admin privileges automatically.
 
 ---
 
@@ -49,7 +49,7 @@ Open `http://localhost:8080` in a browser. Because this is the first time the pr
 Navigate to **Admin → Catalog** or use the API:
 
 ```bash
-curl -s -X POST http://localhost:8080/api/admin/catalog \
+curl -s -X POST http://localhost:9753/api/admin/catalog \
   -H "Content-Type: application/json" \
   -H "Cookie: session=<your-session-cookie>" \
   -d '{
@@ -68,7 +68,7 @@ curl -s -X POST http://localhost:8080/api/admin/catalog \
 ## 5. Add a stdio MCP server
 
 ```bash
-curl -s -X POST http://localhost:8080/api/admin/catalog \
+curl -s -X POST http://localhost:9753/api/admin/catalog \
   -H "Content-Type: application/json" \
   -H "Cookie: session=<your-session-cookie>" \
   -d '{
@@ -88,16 +88,16 @@ The proxy will spawn the `npx` subprocess on demand when an AI tool calls a file
 
 ## 6. Connect your AI tool
 
-Go to the dashboard (`http://localhost:8080`) to see your personal proxy URL:
+Go to the dashboard (`http://localhost:9753`) to see your personal proxy URL:
 
 ```
-http://localhost:8080/mcp/<your-token>
+http://localhost:9753/mcp/<your-token>
 ```
 
 Add it to Claude Code:
 
 ```bash
-claude mcp add --transport http mcp-proxy-local http://localhost:8080/mcp/<your-token>
+claude mcp add --transport http mcp-proxy-local http://localhost:9753/mcp/<your-token>
 ```
 
 ---
@@ -111,7 +111,7 @@ If your company also runs a hosted proxy, configure your AI tool with both URLs.
 claude mcp add --transport http mcp-proxy-company https://mcp.example.com/mcp/<company-token>
 
 # Your local proxy (PAT-based, stdio servers)
-claude mcp add --transport http mcp-proxy-local http://localhost:8080/mcp/<local-token>
+claude mcp add --transport http mcp-proxy-local http://localhost:9753/mcp/<local-token>
 ```
 
 ---
@@ -123,7 +123,7 @@ claude mcp add --transport http mcp-proxy-local http://localhost:8080/mcp/<local
 | `LOCAL_MODE` | Yes (for local) | `false` | Set to `true` to enable local mode |
 | `LOCAL_KMS_KEY` | Yes | — | 32-byte hex key; generate with `openssl rand -hex 32` |
 | `KMS_KEY_NAME` | Yes | — | Set to `local` to use `LOCAL_KMS_KEY` |
-| `BASE_URL` | Yes | — | e.g., `http://localhost:8080` |
-| `PORT` | No | `8080` | |
+| `BASE_URL` | Yes | — | e.g., `http://localhost:9753` |
+| `PORT` | No | `9753` | |
 | `DATA_DIR` | No | `.` (CWD) | Directory for `mcp-proxy.db` |
 | `DB_DSN` | No | `file:{DATA_DIR}/mcp-proxy.db` | Override the SQLite path |

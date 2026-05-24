@@ -1,4 +1,4 @@
-BIN := bin/server
+BIN := bin/mcp-proxy
 
 # Generate a stable local KMS key once and write it to .env.local.
 # 32 random bytes as hex = 64 chars.
@@ -6,10 +6,11 @@ BIN := bin/server
 	@printf 'LOCAL_KMS_KEY=%s\nDB_DSN=postgres://mcpproxy:devpassword@localhost:5432/mcpproxy\nKMS_KEY_NAME=local\nBASE_URL=http://localhost:8080\nPORT=8080\nLOCAL_MODE=false\n' \
 	  "$$(openssl rand -hex 32)" > .env.local
 	@echo "Created .env.local with a random LOCAL_KMS_KEY"
+	@echo "Note: for local mode use 'make run-local' (port 9753) instead"
 
 .PHONY: build
 build:
-	go build -o $(BIN) ./cmd/server
+	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o $(BIN) ./cmd/server
 
 .PHONY: test
 test:
@@ -48,7 +49,7 @@ run: build .env.local db-up
 .PHONY: run-local
 run-local: build
 	@LOCAL_MODE=true KMS_KEY_NAME=local LOCAL_KMS_KEY=$$(openssl rand -hex 32) \
-	  BASE_URL=http://localhost:8080 PORT=8080 ./$(BIN)
+	  BASE_URL=http://localhost:9753 PORT=9753 ./$(BIN)
 
 .PHONY: lint
 lint:

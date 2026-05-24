@@ -28,16 +28,24 @@ Tool names are prefixed to avoid collisions: `github__create_issue`, `linear__cr
 
 ## Quickstart (local mode — no cloud required)
 
-**Prerequisites**: Go 1.23+
+The fastest way to install on macOS:
 
 ```bash
-go build -o bin/mcp-proxy ./cmd/server
+curl -fsSL https://raw.githubusercontent.com/rayjohnson/mcp-proxy/main/install.sh | sh
+```
+
+This downloads the latest pre-built binary, stores an encryption key in the macOS Keychain, and registers a launchd service so the proxy starts automatically on login.
+
+Open `http://localhost:9753`, register — the first user is automatically admin. No Docker, no Postgres, no cloud account needed.
+
+**To build and run from source** (requires Go 1.24+):
+
+```bash
 make run-local
 ```
 
-Open `http://localhost:8080`, register — the first user is automatically admin. No Docker, no Postgres, no cloud account needed.
-
-See [`specs/002-local-mode-stdio/quickstart.md`](specs/002-local-mode-stdio/quickstart.md) for full local mode instructions including stdio MCP server setup.
+See [`specs/003-local-install/quickstart.md`](specs/003-local-install/quickstart.md) for the full install guide including upgrade and uninstall.
+See [`specs/002-local-mode-stdio/quickstart.md`](specs/002-local-mode-stdio/quickstart.md) for stdio MCP server setup.
 
 ## Quickstart (hosted dev, with Postgres)
 
@@ -49,6 +57,7 @@ make run
 ```
 
 The server starts at `http://localhost:8080`. Open it in a browser, register — the first user becomes admin.
+
 
 Other useful targets:
 
@@ -97,7 +106,7 @@ Required environment variables:
 | `DB_DSN` | PostgreSQL connection string (hosted mode) |
 | `KMS_KEY_NAME` | GCP KMS key resource name (or `local` for dev) |
 | `BASE_URL` | Public URL of the service (used in OAuth2 callbacks) |
-| `PORT` | Port to listen on (default `8080`) |
+| `PORT` | Port to listen on (default `9753` in local mode, `8080` otherwise) |
 | `LOCAL_KMS_KEY` | 32-byte hex key (dev/local mode, when `KMS_KEY_NAME=local`) |
 | `LOCAL_MODE` | Set to `true` for single-user local deployment (SQLite, stdio support) |
 | `DATA_DIR` | Directory for SQLite database in local mode (default: `.`) |
