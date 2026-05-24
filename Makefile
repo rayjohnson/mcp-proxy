@@ -1,4 +1,17 @@
-BIN := bin/mcp-proxy
+BIN          := bin/mcp-proxy
+VERSION      := $(shell cat VERSION)
+_BRANCH      := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)
+_BRANCH_SLUG := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null \
+                  | tr '[:upper:]' '[:lower:]' \
+                  | tr -cs 'a-z0-9' '-' \
+                  | cut -c1-20 \
+                  | sed 's/-*$$//')
+
+ifeq ($(_BRANCH),main)
+BUILD_VERSION := v$(VERSION)
+else
+BUILD_VERSION := v$(VERSION)-$(_BRANCH_SLUG)
+endif
 
 # Generate a stable local KMS key once and write it to .env.local.
 # 32 random bytes as hex = 64 chars.
@@ -10,7 +23,7 @@ BIN := bin/mcp-proxy
 
 .PHONY: build
 build:
-	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o $(BIN) ./cmd/mcp-proxy
+	go build -ldflags "-X main.version=$(BUILD_VERSION)" -o $(BIN) ./cmd/mcp-proxy
 
 .PHONY: test
 test:

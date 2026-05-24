@@ -1,0 +1,110 @@
+name: Version
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  detect-changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code_changed: ${{ steps.check.outputs.code_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed files
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Exempt paths: .github/workflows/**, specs/**, *.md at repo root
+          # code_changed=true if any non-exempt file was touched
+          if echo "$CHANGED" | grep -qvE '^(\.github/workflows/|specs/|[^/]+\.md$)'; then
+            echo "code_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Result: code changes detected"
+          else
+            echo "code_changed=false" >> "$GITHUB_OUTPUT"
+            echo "Result: only exempt paths changed — no version bump required"
+          fi
+
+  version-check:
+    name: Version bump check
+    needs: detect-changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: No version bump required (exempt paths only)
+        if: needs.detect-changes.outputs.code_changed == 'false'
+        run: echo "Only exempt paths changed — no version bump required."
+
+      - name: Verify VERSION is bumped
+        if: needs.detect-changes.outputs.code_changed == 'true'
+        run: |
+          BRANCH_VERSION=$(cat VERSION)
+          MAIN_VERSION=$(git show origin/main:VERSION)
+          echo "Branch VERSION : $BRANCH_VERSION"
+          echo "main   VERSION : $MAIN_VERSION"
+
+          if [ "$BRANCH_VERSION" = "$MAIN_VERSION" ]; then
+            echo "::error file=VERSION::VERSION ($BRANCH_VERSION) must be greater than main ($MAIN_VERSION). Bump VERSION before merging."
+            exit 1
+          fi
+
+          HIGHER=$(printf '%s\n' "$MAIN_VERSION" "$BRANCH_VERSION" | sort -V | tail -1)
+          if [ "$HIGHER" != "$BRANCH_VERSION" ]; then
+            echo "::error file=VERSION::VERSION ($BRANCH_VERSION) is not greater than main ($MAIN_VERSION). Bump VERSION before merging."
+            exit 1
+          fi
+
+          echo "Version bump verified: $MAIN_VERSION → $BRANCH_VERSION"
+
+  tag-release:
+    name: Tag and release
+    needs: detect-changes
+    if: github.event_name == 'push' && needs.detect-changes.outputs.code_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read VERSION
+        id: ver
+        run: echo "tag=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if tag already exists
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "::error file=VERSION::Tag $TAG already exists. VERSION must be bumped before merging code changes."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
+          echo "The release workflow will now build and publish the GitHub Release."
