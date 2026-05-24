@@ -3,6 +3,7 @@ package handler_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -10,12 +11,11 @@ import (
 	"github.com/rayjohnson/mcp-proxy/internal/handler"
 )
 
-const templatesDir = "../../web/templates"
 const staticDir = "../../web/static"
 
 func initTemplates(t *testing.T) {
 	t.Helper()
-	if err := handler.InitTemplates(templatesDir); err != nil {
+	if err := handler.InitTemplates(os.DirFS("../../web")); err != nil {
 		t.Fatalf("InitTemplates: %v", err)
 	}
 }
@@ -62,7 +62,7 @@ func getWithSession(mux http.Handler, path, token string) *httptest.ResponseReco
 }
 
 func TestInitTemplates(t *testing.T) {
-	if err := handler.InitTemplates(templatesDir); err != nil {
+	if err := handler.InitTemplates(os.DirFS("../../web")); err != nil {
 		t.Fatalf("InitTemplates failed: %v", err)
 	}
 }

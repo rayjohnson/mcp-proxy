@@ -3,19 +3,24 @@ package handler
 import (
 	"context"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 
 	"github.com/rayjohnson/mcp-proxy/internal/store"
 )
 
 var pageTemplates map[string]*template.Template
 
-// InitTemplates builds a per-page template set: layout + partials + the page file.
-func InitTemplates(dir string) error {
-	layout := filepath.Join(dir, "layout.html")
-	partials, err := filepath.Glob(filepath.Join(dir, "partials", "*.html"))
+// InitTemplates builds a per-page template set from an fs.FS rooted at the
+// repo root (i.e. templates live at templates/<page>.html within fsys).
+func InitTemplates(fsys fs.FS) error {
+	sub, err := fs.Sub(fsys, "templates")
+	if err != nil {
+		return err
+	}
+
+	partials, err := fs.Glob(sub, "partials/*.html")
 	if err != nil {
 		return err
 	}
@@ -31,8 +36,8 @@ func InitTemplates(dir string) error {
 
 	pageTemplates = make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
-		files := append([]string{layout, filepath.Join(dir, page)}, partials...)
-		tmpl, err := template.ParseFiles(files...)
+		files := append([]string{"layout.html", page}, partials...)
+		tmpl, err := template.ParseFS(sub, files...)
 		if err != nil {
 			return err
 		}

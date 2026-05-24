@@ -13,14 +13,13 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/rayjohnson/mcp-proxy/internal/store"
 )
-
-const templatesDir = "../../web/templates"
 
 // ---------------------------------------------------------------------------
 // Fake store implementations
@@ -104,7 +103,7 @@ func (f *fakeSuggestions) CreateSuggestionForAllUsers(_ context.Context, _ strin
 
 func newAuthTestServer(t *testing.T, users *fakeUserStore) *httptest.Server {
 	t.Helper()
-	if err := InitTemplates(templatesDir); err != nil {
+	if err := InitTemplates(os.DirFS("../../web")); err != nil {
 		t.Fatalf("InitTemplates: %v", err)
 	}
 
