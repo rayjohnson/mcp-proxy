@@ -8,6 +8,7 @@ vendor/
 
 # Build output
 bin/
+server
 
 # Environment
 .env
