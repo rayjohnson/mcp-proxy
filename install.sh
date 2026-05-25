@@ -15,6 +15,29 @@ DATA_DIR_DEFAULT="${HOME}/Library/Application Support/mcp-proxy"
 KEYCHAIN_SERVICE="mcp-proxy"
 KEYCHAIN_ACCOUNT="encryption-key"
 
+# ---------------------------------------------------------------------------
+# Resolve real user (handles being invoked via sudo)
+# ---------------------------------------------------------------------------
+if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+  REAL_USER="$SUDO_USER"
+  REAL_UID="${SUDO_UID:-$(id -u "$SUDO_USER")}"
+  REAL_HOME="$(dscl . -read "/Users/${REAL_USER}" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
+  HOME="${REAL_HOME:-/Users/${REAL_USER}}"
+  export HOME
+else
+  REAL_USER="$(id -un)"
+  REAL_UID="$(id -u)"
+fi
+
+# Wrapper so launchctl gui/UID commands run as the real user even under sudo.
+launchctl_user() {
+  if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    sudo -u "$REAL_USER" launchctl "$@"
+  else
+    launchctl "$@"
+  fi
+}
+
 # Defaults
 PORT="9753"
 DATA_DIR="${DATA_DIR_DEFAULT}"
@@ -85,12 +108,12 @@ if [ "$UNINSTALL" -eq 1 ]; then
 
   # Stop and deregister services
   if [ -f "$MENU_PLIST_PATH" ]; then
-    launchctl bootout "gui/$(id -u)" "$MENU_PLIST_PATH" 2>/dev/null || true
+    launchctl_user bootout "gui/${REAL_UID}" "$MENU_PLIST_PATH" 2>/dev/null || true
     rm -f "$MENU_PLIST_PATH"
     echo "    Removed menu bar launchd service"
   fi
   if [ -f "$PLIST_PATH" ]; then
-    launchctl bootout "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || true
+    launchctl_user bootout "gui/${REAL_UID}" "$PLIST_PATH" 2>/dev/null || true
     rm -f "$PLIST_PATH"
     echo "    Removed launchd service"
   fi
@@ -215,11 +238,11 @@ BINARY_PATH="${INSTALL_DIR}/${BINARY_NAME}"
 # ---------------------------------------------------------------------------
 if [ -f "$MENU_PLIST_PATH" ]; then
   echo "==> Stopping existing menu bar service for upgrade..."
-  launchctl bootout "gui/$(id -u)" "$MENU_PLIST_PATH" 2>/dev/null || true
+  launchctl_user bootout "gui/${REAL_UID}" "$MENU_PLIST_PATH" 2>/dev/null || true
 fi
 if [ -f "$PLIST_PATH" ]; then
   echo "==> Stopping existing service for upgrade..."
-  launchctl bootout "gui/$(id -u)" "$PLIST_PATH" 2>/dev/null || true
+  launchctl_user bootout "gui/${REAL_UID}" "$PLIST_PATH" 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
@@ -366,10 +389,10 @@ EOF
 # Bootstrap and health check
 # ---------------------------------------------------------------------------
 echo "==> Starting mcp-proxy service..."
-launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
+launchctl_user bootstrap "gui/${REAL_UID}" "$PLIST_PATH"
 
 echo "==> Starting mcp-proxy menu bar app..."
-launchctl bootstrap "gui/$(id -u)" "$MENU_PLIST_PATH"
+launchctl_user bootstrap "gui/${REAL_UID}" "$MENU_PLIST_PATH"
 
 echo "==> Waiting for service to be ready..."
 HEALTH_URL="http://localhost:${PORT}/health"

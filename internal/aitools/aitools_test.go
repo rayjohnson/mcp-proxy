@@ -269,6 +269,25 @@ func TestClaudeConfigure_InvalidExistingJSON(t *testing.T) {
 	}
 }
 
+func TestClaudeDetect_InstallURLAlwaysSet(t *testing.T) {
+	cases := []struct {
+		name      string
+		createApp bool
+	}{
+		{"not_installed", false},
+		{"unconfigured", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tool, _ := newClaudeTest(t, tc.createApp)
+			got := tool.Detect()
+			if got.InstallURL == "" {
+				t.Errorf("InstallURL is empty for status %q", got.Status)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // GeminiCLITool helpers
 // ---------------------------------------------------------------------------
@@ -321,6 +340,31 @@ func TestGeminiDetect_MCPListFails_TreatedAsUnconfigured(t *testing.T) {
 	// A broken mcp list should not surface as StatusError — just StatusUnconfigured.
 	if got.Status != StatusUnconfigured {
 		t.Errorf("status = %q, want %q", got.Status, StatusUnconfigured)
+	}
+}
+
+func TestGeminiDetect_InstallURLAlwaysSet(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+	}{
+		{"not_installed", ""},  // geminiBin set to nonexistent path below
+		{"unconfigured", `echo "no servers"`},
+		{"configured", `echo "  mcp-proxy  http://localhost/mcp/tok"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var tool *GeminiCLITool
+			if tc.name == "not_installed" {
+				tool = &GeminiCLITool{geminiBin: "/nonexistent/gemini-binary"}
+			} else {
+				tool = &GeminiCLITool{geminiBin: fakeBin(t, tc.script)}
+			}
+			got := tool.Detect()
+			if got.InstallURL == "" {
+				t.Errorf("InstallURL is empty for status %q", got.Status)
+			}
+		})
 	}
 }
 

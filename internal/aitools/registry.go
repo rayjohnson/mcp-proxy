@@ -22,6 +22,7 @@ type AITool struct {
 	DisplayName  string     `json:"display_name"`
 	Status       ToolStatus `json:"status"`
 	ErrorMessage string     `json:"error_message,omitempty"`
+	InstallURL   string     `json:"install_url,omitempty"`
 }
 
 // Configurer detects and configures a supported AI tool to use the proxy.
