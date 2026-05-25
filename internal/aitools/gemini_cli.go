@@ -24,7 +24,7 @@ func (t *GeminiCLITool) lookupGemini() (string, error) {
 		}
 		return t.geminiBin, nil
 	}
-	return exec.LookPath("gemini")
+	return lookupBinary("gemini")
 }
 
 func (t *GeminiCLITool) Detect() AITool {

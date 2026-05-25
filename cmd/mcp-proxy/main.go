@@ -104,6 +104,7 @@ func main() {
 		[]aitools.Configurer{
 			&aitools.ClaudeDesktopTool{},
 			&aitools.GeminiCLITool{},
+			&aitools.ClaudeCodeTool{},
 		},
 		userStore,
 		cfg.BaseURL,

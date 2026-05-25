@@ -401,6 +401,121 @@ func TestGeminiConfigure_NotInstalled(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// lookupBinary
+// ---------------------------------------------------------------------------
+
+func TestLookupBinary_FindsInFallbackDir(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "mytool")
+	if err := os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755); err != nil { //nolint:gosec // 0755 required for executable
+		t.Fatalf("write fake binary: %v", err)
+	}
+	// Temporarily prepend the temp dir to commonBinDirs so lookupBinary finds it.
+	orig := commonBinDirs
+	commonBinDirs = append([]string{dir}, commonBinDirs...)
+	defer func() { commonBinDirs = orig }()
+
+	got, err := lookupBinary("mytool")
+	if err != nil {
+		t.Fatalf("lookupBinary: %v", err)
+	}
+	if got != p {
+		t.Errorf("got %q, want %q", got, p)
+	}
+}
+
+func TestLookupBinary_NotFound(t *testing.T) {
+	_, err := lookupBinary("nonexistent-binary-xyz")
+	if err == nil {
+		t.Error("expected error for missing binary")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ClaudeCodeTool.Detect
+// ---------------------------------------------------------------------------
+
+func TestClaudeCodeDetect_NotInstalled(t *testing.T) {
+	tool := &ClaudeCodeTool{claudeBin: "/nonexistent/claude-binary"}
+	got := tool.Detect()
+	if got.Status != StatusNotInstalled {
+		t.Errorf("status = %q, want %q", got.Status, StatusNotInstalled)
+	}
+}
+
+func TestClaudeCodeDetect_Unconfigured(t *testing.T) {
+	bin := fakeBin(t, `echo "no mcp servers"`)
+	tool := &ClaudeCodeTool{claudeBin: bin}
+	got := tool.Detect()
+	if got.Status != StatusUnconfigured {
+		t.Errorf("status = %q, want %q", got.Status, StatusUnconfigured)
+	}
+}
+
+func TestClaudeCodeDetect_Configured(t *testing.T) {
+	bin := fakeBin(t, `echo "mcp-proxy: http://localhost:9753/mcp/tok (HTTP)"`)
+	tool := &ClaudeCodeTool{claudeBin: bin}
+	got := tool.Detect()
+	if got.Status != StatusConfigured {
+		t.Errorf("status = %q, want %q", got.Status, StatusConfigured)
+	}
+}
+
+func TestClaudeCodeDetect_MCPListFails_TreatedAsUnconfigured(t *testing.T) {
+	bin := fakeBin(t, `exit 1`)
+	tool := &ClaudeCodeTool{claudeBin: bin}
+	got := tool.Detect()
+	if got.Status != StatusUnconfigured {
+		t.Errorf("status = %q, want %q", got.Status, StatusUnconfigured)
+	}
+}
+
+func TestClaudeCodeDetect_InstallURLAlwaysSet(t *testing.T) {
+	tool := &ClaudeCodeTool{claudeBin: "/nonexistent/claude-binary"}
+	got := tool.Detect()
+	if got.InstallURL == "" {
+		t.Errorf("InstallURL is empty for status %q", got.Status)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ClaudeCodeTool.Configure
+// ---------------------------------------------------------------------------
+
+func TestClaudeCodeConfigure_Success(t *testing.T) {
+	bin := fakeBin(t, `exit 0`)
+	tool := &ClaudeCodeTool{claudeBin: bin}
+	if err := tool.Configure("http://localhost:9753/mcp/tok"); err != nil {
+		t.Errorf("Configure: %v", err)
+	}
+}
+
+func TestClaudeCodeConfigure_CommandFails(t *testing.T) {
+	// Script: remove succeeds, add fails. $1=mcp $2=remove|add
+	bin := fakeBin(t, `
+case "$2" in
+  remove) exit 0 ;;
+  add) echo "permission denied" >&2; exit 1 ;;
+esac`)
+	tool := &ClaudeCodeTool{claudeBin: bin}
+	err := tool.Configure("http://localhost:9753/mcp/tok")
+	if err == nil {
+		t.Fatal("expected error when claude mcp add exits non-zero")
+	}
+	if !strings.Contains(err.Error(), "claude mcp add failed") {
+		t.Errorf("error = %q, want 'claude mcp add failed'", err.Error())
+	}
+}
+
+func TestClaudeCodeConfigure_NotInstalled(t *testing.T) {
+	tool := &ClaudeCodeTool{claudeBin: "/nonexistent/claude-binary"}
+	err := tool.Configure("http://localhost:9753/mcp/tok")
+	if err == nil {
+		t.Fatal("expected error when claude binary missing")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
 
