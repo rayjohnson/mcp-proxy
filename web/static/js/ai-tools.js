@@ -18,15 +18,18 @@
       return;
     }
     const rows = tools.map(function (tool) {
-      const btn = (tool.status === 'unconfigured')
-        ? '<button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>'
-        : '';
+      let action = '';
+      if (tool.status === 'unconfigured') {
+        action = '<button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>';
+      } else if (tool.status === 'not_installed' && tool.install_url) {
+        action = '<a class="button" href="' + tool.install_url + '" target="_blank" rel="noopener">Install</a>';
+      }
       const err = tool.error_message
         ? '<span class="hint" style="color:#dc3545"> — ' + tool.error_message + '</span>'
         : '';
       return '<div class="ai-tool-row catalog-card" id="ai-tool-' + tool.id + '">' +
         '<span class="ai-tool-name">' + tool.display_name + '</span>' +
-        statusLabel(tool.status) + err + btn +
+        statusLabel(tool.status) + err + action +
         '</div>';
     });
     container.innerHTML = rows.join('');

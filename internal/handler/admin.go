@@ -94,7 +94,7 @@ func (h *AdminHandler) CatalogPage(w http.ResponseWriter, r *http.Request) {
 	entries, _ := h.catalogStore.ListActiveCatalogEntries(r.Context())
 	claims := ClaimsFromContext(r.Context())
 	renderTemplate(w, "admin-catalog.html", AdminCatalogData{
-		PageBase: PageBase{IsAdmin: claims != nil && claims.Role == "admin"},
+		PageBase: PageBase{IsAdmin: claims != nil && claims.Role == "admin", Version: appVersion},
 		Entries:  entries,
 		Error:    r.URL.Query().Get("error"),
 	})
@@ -187,7 +187,7 @@ func (h *AdminHandler) UsersPage(w http.ResponseWriter, r *http.Request) {
 	users, _ := h.userStore.ListAllUsers(r.Context())
 	claims := ClaimsFromContext(r.Context())
 	renderTemplate(w, "admin-users.html", AdminUsersData{
-		PageBase: PageBase{IsAdmin: claims != nil && claims.Role == "admin"},
+		PageBase: PageBase{IsAdmin: claims != nil && claims.Role == "admin", Version: appVersion},
 		Users:    users,
 		Error:    r.URL.Query().Get("error"),
 	})

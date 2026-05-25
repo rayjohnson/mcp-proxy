@@ -31,6 +31,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	handler.SetVersion(version)
+
 	ctx := context.Background()
 
 	cfg, err := config.Load()

@@ -31,7 +31,7 @@ func (t *ClaudeDesktopTool) getConfigFile() string {
 }
 
 func (t *ClaudeDesktopTool) Detect() AITool {
-	tool := AITool{ID: t.ID(), DisplayName: "Claude Desktop"}
+	tool := AITool{ID: t.ID(), DisplayName: "Claude Desktop", InstallURL: "https://claude.ai/download"}
 
 	if _, err := os.Stat(t.getAppPath()); os.IsNotExist(err) {
 		tool.Status = StatusNotInstalled

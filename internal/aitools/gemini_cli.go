@@ -28,7 +28,7 @@ func (t *GeminiCLITool) lookupGemini() (string, error) {
 }
 
 func (t *GeminiCLITool) Detect() AITool {
-	tool := AITool{ID: t.ID(), DisplayName: "Gemini CLI"}
+	tool := AITool{ID: t.ID(), DisplayName: "Gemini CLI", InstallURL: "https://github.com/google-gemini/gemini-cli#installation"}
 
 	geminiPath, err := t.lookupGemini()
 	if err != nil {

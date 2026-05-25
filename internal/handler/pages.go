@@ -59,10 +59,17 @@ func renderTemplate(w http.ResponseWriter, page string, data any) {
 	}
 }
 
+// appVersion is set once at startup via SetVersion.
+var appVersion string
+
+// SetVersion records the binary version for use in all page templates.
+func SetVersion(v string) { appVersion = v }
+
 // PageBase is embedded in every page data struct so the layout can render
 // admin navigation links conditionally.
 type PageBase struct {
 	IsAdmin bool
+	Version string
 }
 
 // AuthPageData is used by login and register pages.
@@ -189,7 +196,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renderTemplate(w, "dashboard.html", DashboardData{
-		PageBase:  PageBase{IsAdmin: claims.Role == "admin"},
+		PageBase:  PageBase{IsAdmin: claims.Role == "admin", Version: appVersion},
 		ProxyURL:  h.baseURL + "/mcp/" + user.ProxyToken,
 		LocalMode: h.localMode,
 		Available: available,
@@ -230,7 +237,7 @@ func (h *DashboardHandler) ConnectPage(w http.ResponseWriter, r *http.Request) {
 	}
 	claims := ClaimsFromContext(r.Context())
 	renderTemplate(w, "connect.html", ConnectData{
-		PageBase:    PageBase{IsAdmin: claims != nil && claims.Role == "admin"},
+		PageBase:    PageBase{IsAdmin: claims != nil && claims.Role == "admin", Version: appVersion},
 		CatalogID:   entry.ID,
 		ServerType:  entry.ServerType,
 		DisplayName: entry.DisplayName,
