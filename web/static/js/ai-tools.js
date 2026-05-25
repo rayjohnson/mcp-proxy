@@ -1,7 +1,4 @@
 (function () {
-  const container = document.getElementById('ai-tools-list');
-  if (!container) return;
-
   function statusLabel(status) {
     switch (status) {
       case 'configured':    return '<span class="status-badge status-active">Configured ✓</span>';
@@ -12,70 +9,55 @@
     }
   }
 
-  function renderTools(tools) {
-    if (!tools.length) {
-      container.innerHTML = '<p class="hint">No supported AI tools detected.</p>';
-      return;
+  function injectTool(tool) {
+    var container = document.querySelector('[data-tool-id="' + tool.id + '"] .tool-auto-configure');
+    if (!container) return;
+
+    var html = statusLabel(tool.status);
+    if (tool.error_message) {
+      html += ' <span class="hint" style="color:#dc3545">— ' + tool.error_message + '</span>';
     }
-    const rows = tools.map(function (tool) {
-      let action = '';
-      if (tool.status === 'unconfigured') {
-        action = '<button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>';
-      } else if (tool.status === 'not_installed' && tool.install_url) {
-        action = '<a class="button" href="' + tool.install_url + '" target="_blank" rel="noopener">Install</a>';
-      }
-      const err = tool.error_message
-        ? '<span class="hint" style="color:#dc3545"> — ' + tool.error_message + '</span>'
-        : '';
-      return '<div class="ai-tool-row catalog-card" id="ai-tool-' + tool.id + '">' +
-        '<span class="ai-tool-name">' + tool.display_name + '</span>' +
-        statusLabel(tool.status) + err + action +
-        '</div>';
-    });
-    container.innerHTML = rows.join('');
+    if (tool.status === 'unconfigured') {
+      html += ' <button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>';
+    } else if (tool.status === 'not_installed' && tool.install_url) {
+      html += ' <a class="button" href="' + tool.install_url + '" target="_blank" rel="noopener">Install</a>';
+    }
+    container.innerHTML = html;
 
     container.querySelectorAll('.ai-tool-configure').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const id = btn.dataset.id;
+        var id = btn.dataset.id;
         btn.disabled = true;
         btn.textContent = 'Configuring…';
         fetch('/api/tools/' + id + '/configure', { method: 'POST' })
-          .then(function (res) { return res.json(); })
-          .then(function (tool) { updateRow(tool); })
-          .catch(function () { btn.disabled = false; btn.textContent = 'Configure'; });
-      });
-    });
-  }
-
-  function updateRow(tool) {
-    const row = document.getElementById('ai-tool-' + tool.id);
-    if (!row) return;
-    const btn = (tool.status === 'unconfigured')
-      ? '<button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>'
-      : '';
-    const err = tool.error_message
-      ? '<span class="hint" style="color:#dc3545"> — ' + tool.error_message + '</span>'
-      : '';
-    row.innerHTML = '<span class="ai-tool-name">' + tool.display_name + '</span>' +
-      statusLabel(tool.status) + err + btn;
-
-    row.querySelectorAll('.ai-tool-configure').forEach(function (b) {
-      b.addEventListener('click', function () {
-        const id = b.dataset.id;
-        b.disabled = true;
-        b.textContent = 'Configuring…';
-        fetch('/api/tools/' + id + '/configure', { method: 'POST' })
-          .then(function (res) { return res.json(); })
-          .then(function (t) { updateRow(t); })
-          .catch(function () { b.disabled = false; b.textContent = 'Configure'; });
+          .then(function (res) {
+            return res.json().then(function (data) {
+              if (!res.ok) {
+                btn.disabled = false;
+                btn.textContent = 'Configure';
+                var errSpan = container.querySelector('.configure-error');
+                if (!errSpan) {
+                  errSpan = document.createElement('span');
+                  errSpan.className = 'configure-error hint';
+                  errSpan.style.color = '#dc3545';
+                  container.appendChild(errSpan);
+                }
+                errSpan.textContent = '— ' + (data.error || 'Configuration failed');
+              } else {
+                injectTool(data);
+              }
+            });
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = 'Configure';
+          });
       });
     });
   }
 
   fetch('/api/tools')
     .then(function (res) { return res.json(); })
-    .then(renderTools)
-    .catch(function () {
-      container.innerHTML = '<p class="hint">Could not load AI tool status.</p>';
-    });
+    .then(function (tools) { tools.forEach(injectTool); })
+    .catch(function () { /* non-local mode or API unavailable */ });
 })();

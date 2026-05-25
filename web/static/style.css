@@ -208,16 +208,38 @@ button.secondary:hover {
   word-break: normal;
 }
 
-.ai-tools-section { margin-bottom: 2rem; }
-
-.ai-tool-row {
+.tool-auto-configure {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex-direction: row;
+  gap: 0.75rem;
   flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #dee2e6;
 }
-.ai-tool-name { font-weight: 600; flex: 1; min-width: 140px; }
+.tool-auto-configure:empty { display: none; }
+.tool-auto-configure:not(:empty) + p { border-top: none; }
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.modal-box h3 { margin: 0 0 0.5rem; }
+.modal-box p  { margin: 0 0 1rem; color: #6c757d; }
+.modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 
 .mode-badge {
   display: inline-block;
