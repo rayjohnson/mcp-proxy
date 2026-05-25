@@ -2,8 +2,14 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/rayjohnson/mcp-proxy/internal/catalog"
 	"github.com/rayjohnson/mcp-proxy/internal/kms"
@@ -336,4 +342,100 @@ func (h *AdminHandler) ModeHandler(w http.ResponseWriter, r *http.Request) {
 		mode = "local"
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"mode": mode})
+}
+
+// UpdateCatalogAuthTypeAPI handles PATCH /api/admin/catalog/{id}.
+func (h *AdminHandler) UpdateCatalogAuthTypeAPI(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeJSONError(w, "missing catalog entry id", http.StatusBadRequest)
+		return
+	}
+	var req struct {
+		AuthType string `json:"auth_type"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeJSONError(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	validAuthTypes := map[string]bool{"api_key": true, "pat": true, "oauth2": true, "none": true}
+	if !validAuthTypes[req.AuthType] {
+		writeJSONError(w, "auth_type must be one of: api_key, pat, oauth2, none", http.StatusBadRequest)
+		return
+	}
+	if err := h.catalogStore.UpdateCatalogAuthType(r.Context(), id, req.AuthType); err != nil {
+		writeJSONError(w, "failed to update catalog entry", http.StatusInternalServerError)
+		return
+	}
+	entry, err := h.catalogStore.GetCatalogEntryByID(r.Context(), id)
+	if err != nil {
+		writeJSONError(w, "failed to fetch updated entry", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, catalogEntryToResponse(entry))
+}
+
+type versionCheckResponse struct {
+	Current         string `json:"current"`
+	Latest          string `json:"latest"`
+	UpdateAvailable bool   `json:"update_available"`
+}
+
+func fetchLatestVersion(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.github.com/repos/rayjohnson/mcp-proxy/releases/latest", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "mcp-proxy/"+GetVersion())
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read body: %w", err)
+	}
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.Unmarshal(body, &release); err != nil {
+		return "", fmt.Errorf("parse response: %w", err)
+	}
+	return strings.TrimPrefix(release.TagName, "v"), nil
+}
+
+// CheckVersionAPI handles GET /api/version/check.
+func (h *AdminHandler) CheckVersionAPI(w http.ResponseWriter, r *http.Request) {
+	latest, err := fetchLatestVersion(r.Context())
+	if err != nil {
+		writeJSONError(w, "failed to check version: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	current := GetVersion()
+	writeJSON(w, http.StatusOK, versionCheckResponse{
+		Current:         current,
+		Latest:          latest,
+		UpdateAvailable: latest != "" && latest != current,
+	})
+}
+
+// UpdateAPI handles POST /api/admin/update — triggers the install script in the background.
+// The server will restart; the client should refresh after a few seconds.
+func (h *AdminHandler) UpdateAPI(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusAccepted, map[string]string{
+		"status":  "updating",
+		"message": "Update started. The server will restart — refresh in a few seconds.",
+	})
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		cmd := exec.Command("sh", "-c", "curl -fsSL https://raw.githubusercontent.com/rayjohnson/mcp-proxy/main/install.sh | sh")
+		_ = cmd.Start()
+	}()
 }

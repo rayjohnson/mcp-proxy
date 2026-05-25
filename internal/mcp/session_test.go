@@ -65,7 +65,8 @@ func (f *sessionFakeCatalogStore) GetCatalogEntryByServerType(_ context.Context,
 func (f *sessionFakeCatalogStore) GetCatalogEntryByID(_ context.Context, _ string) (*store.CatalogEntry, error) {
 	return nil, nil
 }
-func (f *sessionFakeCatalogStore) DeactivateCatalogEntry(_ context.Context, _ string) error { return nil }
+func (f *sessionFakeCatalogStore) DeactivateCatalogEntry(_ context.Context, _ string) error  { return nil }
+func (f *sessionFakeCatalogStore) UpdateCatalogAuthType(_ context.Context, _, _ string) error { return nil }
 
 // ---------------------------------------------------------------------------
 // T012: disabled HTTP upstream is not connected in OpenSession

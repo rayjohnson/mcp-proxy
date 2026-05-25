@@ -65,6 +65,28 @@ func (t *ClaudeDesktopTool) Detect() AITool {
 	return tool
 }
 
+func (t *ClaudeDesktopTool) Unconfigure() error {
+	configPath := t.getConfigFile()
+	data, err := os.ReadFile(configPath) //nolint:gosec // path derived from os.UserHomeDir or test override
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("config file contains invalid JSON: %w", err)
+	}
+	mcpServers, _ := cfg["mcpServers"].(map[string]any)
+	if mcpServers == nil {
+		return nil
+	}
+	delete(mcpServers, "mcp-proxy")
+	cfg["mcpServers"] = mcpServers
+	return atomicWriteJSON(configPath, cfg)
+}
+
 func (t *ClaudeDesktopTool) Configure(mcpURL string) error {
 	configPath := t.getConfigFile()
 

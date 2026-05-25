@@ -39,7 +39,7 @@ type fakeTool struct {
 	configured   bool
 }
 
-func (f *fakeTool) ID() string          { return f.id }
+func (f *fakeTool) ID() string             { return f.id }
 func (f *fakeTool) Detect() aitools.AITool { return f.detectResult }
 func (f *fakeTool) Configure(mcpURL string) error {
 	if f.configureErr != nil {
@@ -47,6 +47,11 @@ func (f *fakeTool) Configure(mcpURL string) error {
 	}
 	f.configured = true
 	f.detectResult.Status = aitools.StatusConfigured
+	return nil
+}
+func (f *fakeTool) Unconfigure() error {
+	f.configured = false
+	f.detectResult.Status = aitools.StatusUnconfigured
 	return nil
 }
 

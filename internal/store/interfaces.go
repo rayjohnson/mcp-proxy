@@ -24,6 +24,7 @@ type CatalogStoreI interface {
 	GetCatalogEntryByServerType(ctx context.Context, serverType string) (*CatalogEntry, error)
 	GetCatalogEntryByID(ctx context.Context, id string) (*CatalogEntry, error)
 	DeactivateCatalogEntry(ctx context.Context, id string) error
+	UpdateCatalogAuthType(ctx context.Context, id, authType string) error
 }
 
 // UpstreamStoreI is the interface satisfied by both the Postgres and SQLite upstream stores.

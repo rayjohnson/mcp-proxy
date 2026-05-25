@@ -54,12 +54,13 @@
       </thead>
       <tbody>
         {{range .Entries}}
-        <tr>
+        <tr id="catalog-row-{{.ID}}">
           <td>{{.DisplayName}}</td>
           <td><code>{{.ServerType}}</code></td>
-          <td>{{.AuthType}}</td>
+          <td id="catalog-auth-{{.ID}}">{{.AuthType}}</td>
           <td><a href="{{.ServerURL}}" target="_blank" rel="noopener">{{.ServerURL}}</a></td>
           <td>
+            <button class="secondary" onclick="editAuthType('{{.ID}}', '{{.AuthType}}')">Edit Auth</button>
             <form method="POST" action="/admin/catalog/{{.ID}}/remove" style="display:inline"
                   onsubmit="return confirm('Remove {{.DisplayName}} from catalog?')">
               <button type="submit" class="danger">Remove</button>
@@ -72,6 +73,63 @@
     {{else}}
     <p>No servers in the catalog yet.</p>
     {{end}}
+
+  <!-- Edit auth type modal -->
+  <div id="edit-auth-modal" class="modal-overlay" onclick="if(event.target===this)closeAuthModal()">
+    <div class="modal-box">
+      <h3>Edit Auth Type</h3>
+      <label>Auth Type
+        <select id="edit-auth-select">
+          <option value="api_key">API Key</option>
+          <option value="pat">PAT (Personal Access Token)</option>
+          <option value="none">None (auto-connect)</option>
+        </select>
+      </label>
+      <p id="edit-auth-error" class="error" style="display:none"></p>
+      <div class="modal-actions">
+        <button onclick="saveAuthType()">Save</button>
+        <button class="secondary" onclick="closeAuthModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <script>
+  var _editCatalogID = '';
+  function editAuthType(id, current) {
+    _editCatalogID = id;
+    document.getElementById('edit-auth-select').value = current;
+    document.getElementById('edit-auth-error').style.display = 'none';
+    document.getElementById('edit-auth-modal').classList.add('open');
+  }
+  function closeAuthModal() {
+    document.getElementById('edit-auth-modal').classList.remove('open');
+  }
+  function saveAuthType() {
+    var authType = document.getElementById('edit-auth-select').value;
+    var errEl = document.getElementById('edit-auth-error');
+    errEl.style.display = 'none';
+    fetch('/api/admin/catalog/' + _editCatalogID, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({auth_type: authType})
+    }).then(function(r) {
+      return r.json().then(function(data) {
+        if (!r.ok) {
+          errEl.textContent = data.error || 'Failed to update.';
+          errEl.style.display = 'block';
+        } else {
+          document.getElementById('catalog-auth-' + _editCatalogID).textContent = data.auth_type;
+          closeAuthModal();
+        }
+      });
+    }).catch(function() {
+      errEl.textContent = 'Network error.';
+      errEl.style.display = 'block';
+    });
+  }
+  document.getElementById('edit-auth-modal').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeAuthModal();
+  });
+  </script>
   </section>
 </div>
 {{end}}

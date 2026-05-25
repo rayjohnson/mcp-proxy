@@ -65,6 +65,9 @@ var appVersion string
 // SetVersion records the binary version for use in all page templates.
 func SetVersion(v string) { appVersion = v }
 
+// GetVersion returns the binary version set at startup.
+func GetVersion() string { return appVersion }
+
 // PageBase is embedded in every page data struct so the layout can render
 // admin navigation links conditionally.
 type PageBase struct {
