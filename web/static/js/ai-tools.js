@@ -19,6 +19,8 @@
     }
     if (tool.status === 'unconfigured') {
       html += ' <button class="button ai-tool-configure" data-id="' + tool.id + '">Configure</button>';
+    } else if (tool.status === 'configured') {
+      html += ' <button class="secondary ai-tool-remove" data-id="' + tool.id + '">Remove</button>';
     } else if (tool.status === 'not_installed' && tool.install_url) {
       html += ' <a class="button" href="' + tool.install_url + '" target="_blank" rel="noopener">Install</a>';
     }
@@ -51,6 +53,37 @@
           .catch(function () {
             btn.disabled = false;
             btn.textContent = 'Configure';
+          });
+      });
+    });
+
+    container.querySelectorAll('.ai-tool-remove').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.id;
+        btn.disabled = true;
+        btn.textContent = 'Removing…';
+        fetch('/api/tools/' + id + '/configure', { method: 'DELETE' })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              if (!res.ok) {
+                btn.disabled = false;
+                btn.textContent = 'Remove';
+                var errSpan = container.querySelector('.configure-error');
+                if (!errSpan) {
+                  errSpan = document.createElement('span');
+                  errSpan.className = 'configure-error hint';
+                  errSpan.style.color = '#dc3545';
+                  container.appendChild(errSpan);
+                }
+                errSpan.textContent = '— ' + (data.error || 'Remove failed');
+              } else {
+                injectTool(data);
+              }
+            });
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = 'Remove';
           });
       });
     });

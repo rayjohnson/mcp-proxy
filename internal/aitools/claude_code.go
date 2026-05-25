@@ -53,6 +53,20 @@ func (t *ClaudeCodeTool) Detect() AITool {
 	return tool
 }
 
+func (t *ClaudeCodeTool) Unconfigure() error {
+	claudePath, err := t.lookupClaude()
+	if err != nil {
+		return fmt.Errorf("claude CLI not found: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, claudePath, "mcp", "remove", "mcp-proxy", "--scope", "user") //nolint:gosec // claudePath from lookupBinary or test override; args are fixed literals
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("claude mcp remove failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 func (t *ClaudeCodeTool) Configure(mcpURL string) error {
 	claudePath, err := t.lookupClaude()
 	if err != nil {

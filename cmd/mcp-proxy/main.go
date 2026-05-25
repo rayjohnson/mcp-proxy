@@ -198,6 +198,8 @@ func main() {
 		handler.AuthMiddleware(http.HandlerFunc(aiToolsHandler.StatusAPI)))
 	mux.Handle("POST /api/tools/{id}/configure",
 		handler.AuthMiddleware(http.HandlerFunc(aiToolsHandler.ConfigureAPI)))
+	mux.Handle("DELETE /api/tools/{id}/configure",
+		handler.AuthMiddleware(http.HandlerFunc(aiToolsHandler.UnconfigureAPI)))
 
 	// Admin pages and API (admin role required)
 	adminMW := func(h http.Handler) http.Handler {
@@ -221,7 +223,13 @@ func main() {
 		adminMW(http.HandlerFunc(adminHandler.AddCatalogEntryAPI)))
 	mux.Handle("DELETE /api/admin/catalog/{id}",
 		adminMW(http.HandlerFunc(adminHandler.RemoveCatalogEntryAPI)))
+	mux.Handle("PATCH /api/admin/catalog/{id}",
+		adminMW(http.HandlerFunc(adminHandler.UpdateCatalogAuthTypeAPI)))
 	mux.HandleFunc("GET /api/admin/mode", adminHandler.ModeHandler)
+	mux.Handle("GET /api/version/check",
+		adminMW(http.HandlerFunc(adminHandler.CheckVersionAPI)))
+	mux.Handle("POST /api/admin/update",
+		adminMW(http.HandlerFunc(adminHandler.UpdateAPI)))
 
 	// UI pages
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {

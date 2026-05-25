@@ -25,6 +25,34 @@
   {{if .Version}}
   <footer>
     <span class="version-label">mcp-proxy {{.Version}}</span>
+    {{if .IsAdmin}}
+    <span id="update-badge" style="margin-left:1rem"></span>
+    <script>
+    (function() {
+      fetch('/api/version/check')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (!d.update_available) return;
+          var badge = document.getElementById('update-badge');
+          badge.innerHTML = '<button id="update-btn" class="button" style="font-size:0.75rem;padding:0.2rem 0.6rem">Update to v' + d.latest + '</button>';
+          document.getElementById('update-btn').addEventListener('click', function() {
+            if (!confirm('Update mcp-proxy to v' + d.latest + '? The server will restart.')) return;
+            var btn = document.getElementById('update-btn');
+            btn.disabled = true;
+            btn.textContent = 'Updating…';
+            fetch('/api/admin/update', {method:'POST'})
+              .then(function() {
+                btn.textContent = 'Restarting — refresh in a few seconds';
+              })
+              .catch(function() {
+                btn.textContent = 'Update started — refresh shortly';
+              });
+          });
+        })
+        .catch(function() {});
+    })();
+    </script>
+    {{end}}
   </footer>
   {{end}}
 </body>

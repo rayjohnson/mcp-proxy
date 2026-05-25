@@ -30,6 +30,7 @@ type Configurer interface {
 	ID() string
 	Detect() AITool
 	Configure(mcpURL string) error
+	Unconfigure() error
 }
 
 // atomicWriteJSON marshals v to JSON and writes it atomically to path via

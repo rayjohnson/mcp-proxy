@@ -63,9 +63,27 @@ func (t *GeminiCLITool) Configure(mcpURL string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, geminiPath, "mcp", "add", "mcp-proxy", mcpURL) //nolint:gosec // geminiPath from LookPath or test override; mcpURL is the proxy's own endpoint
+	// --transport http required; default is stdio which treats the URL as a command.
+	// --scope user writes to the user-level config (~/.gemini/settings.json).
+	cmd := exec.CommandContext(ctx, geminiPath, "mcp", "add", "--transport", "http", "--scope", "user", "mcp-proxy", mcpURL) //nolint:gosec // geminiPath from LookPath or test override; mcpURL is the proxy's own endpoint
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("gemini mcp add failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func (t *GeminiCLITool) Unconfigure() error {
+	geminiPath, err := t.lookupGemini()
+	if err != nil {
+		return fmt.Errorf("gemini CLI not found: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, geminiPath, "mcp", "remove", "mcp-proxy") //nolint:gosec // geminiPath from LookPath or test override; args are fixed literals
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("gemini mcp remove failed: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
 }

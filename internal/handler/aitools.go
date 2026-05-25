@@ -49,6 +49,32 @@ func (h *AIToolsHandler) StatusAPI(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, results)
 }
 
+// UnconfigureAPI handles DELETE /api/tools/{id}/configure.
+func (h *AIToolsHandler) UnconfigureAPI(w http.ResponseWriter, r *http.Request) {
+	if !h.localMode {
+		writeJSONError(w, "auto-configuration is only available in local mode", http.StatusServiceUnavailable)
+		return
+	}
+	id := r.PathValue("id")
+	var found aitools.Configurer
+	for _, t := range h.tools {
+		if t.ID() == id {
+			found = t
+			break
+		}
+	}
+	if found == nil {
+		writeJSONError(w, "unknown tool: "+id, http.StatusNotFound)
+		return
+	}
+	if err := found.Unconfigure(); err != nil {
+		writeJSONError(w, "failed to remove config: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	updated := found.Detect()
+	writeJSON(w, http.StatusOK, updated)
+}
+
 // ConfigureAPI handles POST /api/tools/{id}/configure.
 func (h *AIToolsHandler) ConfigureAPI(w http.ResponseWriter, r *http.Request) {
 	if !h.localMode {

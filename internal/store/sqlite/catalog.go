@@ -128,3 +128,9 @@ func (s *CatalogStore) DeactivateCatalogEntry(ctx context.Context, id string) er
 		`UPDATE default_catalog SET active=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`, id)
 	return err
 }
+
+func (s *CatalogStore) UpdateCatalogAuthType(ctx context.Context, id, authType string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE default_catalog SET auth_type=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND active=1`, authType, id)
+	return err
+}
