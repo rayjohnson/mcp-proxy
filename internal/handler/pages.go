@@ -109,6 +109,8 @@ type UpstreamView struct {
 	ServerType  string
 	DisplayName string
 	Status      string
+	Enabled     bool
+	IsCatalog   bool // true for stdio catalog entries (toggle via /api/catalog/)
 }
 
 // DashboardData is passed to dashboard.html.
@@ -126,12 +128,13 @@ type DashboardHandler struct {
 	userStore     dashUserStore
 	upstreamStore store.UpstreamStoreI
 	catalogStore  store.CatalogStoreI
+	toggleStore   store.ToggleStoreI
 	baseURL       string
 	localMode     bool
 }
 
-func NewDashboardHandler(us dashUserStore, ups store.UpstreamStoreI, cs store.CatalogStoreI, baseURL string, localMode bool) *DashboardHandler {
-	return &DashboardHandler{userStore: us, upstreamStore: ups, catalogStore: cs, baseURL: baseURL, localMode: localMode}
+func NewDashboardHandler(us dashUserStore, ups store.UpstreamStoreI, cs store.CatalogStoreI, ts store.ToggleStoreI, baseURL string, localMode bool) *DashboardHandler {
+	return &DashboardHandler{userStore: us, upstreamStore: ups, catalogStore: cs, toggleStore: ts, baseURL: baseURL, localMode: localMode}
 }
 
 func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
@@ -170,6 +173,12 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Load per-user disabled catalog IDs for stdio entries.
+	var disabledCatalog map[string]struct{}
+	if h.toggleStore != nil {
+		disabledCatalog, _ = h.toggleStore.DisabledCatalogIDs(r.Context(), claims.UserID)
+	}
+
 	connected := make([]UpstreamView, 0, len(upstreams))
 	for _, u := range upstreams {
 		name := nameByType[u.ServerType]
@@ -181,16 +190,21 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			ServerType:  u.ServerType,
 			DisplayName: name,
 			Status:      u.Status,
+			Enabled:     u.Enabled,
+			IsCatalog:   false,
 		})
 	}
 	// Stdio catalog entries are auto-connected for every session; show them as active.
 	for _, e := range catalogEntries {
 		if e.Transport == "stdio" {
+			_, isDisabled := disabledCatalog[e.ID]
 			connected = append(connected, UpstreamView{
 				ID:          e.ID,
 				ServerType:  e.ServerType,
 				DisplayName: e.DisplayName,
 				Status:      "active",
+				Enabled:     !isDisabled,
+				IsCatalog:   true,
 			})
 		}
 	}

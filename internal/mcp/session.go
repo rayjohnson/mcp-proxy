@@ -19,10 +19,11 @@ type ProxySession struct {
 }
 
 type SessionDeps struct {
-	UpstreamStore store.UpstreamStoreI
-	CatalogStore  store.CatalogStoreI // for stdio entries, which are catalog-level (no per-user creds)
-	KMSDecrypt    func(ctx context.Context, ciphertext []byte) ([]byte, error)
-	AuthHeader    func(cfg *store.UpstreamConfig, plainCreds []byte) (string, error)
+	UpstreamStore   store.UpstreamStoreI
+	CatalogStore    store.CatalogStoreI // for stdio entries, which are catalog-level (no per-user creds)
+	ToggleStore     store.ToggleStoreI  // per-user enable/disable state for catalog entries
+	KMSDecrypt      func(ctx context.Context, ciphertext []byte) ([]byte, error)
+	AuthHeader      func(cfg *store.UpstreamConfig, plainCreds []byte) (string, error)
 	UpdateTransport func(ctx context.Context, id, transport string) error
 }
 
@@ -34,14 +35,22 @@ func OpenSession(ctx context.Context, userID string, deps SessionDeps) (*ProxySe
 		return nil, fmt.Errorf("load upstream configs: %w", err)
 	}
 
+	// Filter to only enabled configs.
+	var enabled []*store.UpstreamConfig
+	for _, c := range configs {
+		if c.Enabled {
+			enabled = append(enabled, c)
+		}
+	}
+
 	ps := &ProxySession{
 		clients: make(map[string]*UpstreamClient),
-		configs: configs,
+		configs: enabled,
 		UserID:  userID,
 	}
 
 	var wg sync.WaitGroup
-	for _, cfg := range configs {
+	for _, cfg := range enabled {
 		if cfg.Status == "reauth_required" {
 			continue
 		}
@@ -88,7 +97,7 @@ func OpenSession(ctx context.Context, userID string, deps SessionDeps) (*ProxySe
 
 	// Also connect to stdio catalog entries (available to all users; no per-user creds).
 	if deps.CatalogStore != nil {
-		if err := connectStdioEntries(ctx, ps, deps.CatalogStore); err != nil {
+		if err := connectStdioEntriesFiltered(ctx, ps, deps.CatalogStore, deps.ToggleStore); err != nil {
 			slog.Warn("stdio catalog connect error", "err", err)
 		}
 	}
@@ -96,14 +105,28 @@ func OpenSession(ctx context.Context, userID string, deps SessionDeps) (*ProxySe
 	return ps, nil
 }
 
-// connectStdioEntries connects to all active stdio catalog entries.
-func connectStdioEntries(ctx context.Context, ps *ProxySession, cs store.CatalogStoreI) error {
+// connectStdioEntriesFiltered connects to active stdio catalog entries, skipping any
+// that the user has explicitly disabled via the ToggleStore.
+func connectStdioEntriesFiltered(ctx context.Context, ps *ProxySession, cs store.CatalogStoreI, ts store.ToggleStoreI) error {
 	entries, err := cs.ListActiveCatalogEntries(ctx)
 	if err != nil {
 		return fmt.Errorf("list catalog entries for stdio: %w", err)
 	}
+
+	var disabled map[string]struct{}
+	if ts != nil {
+		disabled, err = ts.DisabledCatalogIDs(ctx, ps.UserID)
+		if err != nil {
+			slog.Warn("failed to load disabled catalog ids", "err", err)
+			disabled = map[string]struct{}{}
+		}
+	}
+
 	for _, e := range entries {
 		if e.Transport != "stdio" {
+			continue
+		}
+		if _, isDisabled := disabled[e.ID]; isDisabled {
 			continue
 		}
 		e := e // capture

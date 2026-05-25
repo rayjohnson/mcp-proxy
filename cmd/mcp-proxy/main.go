@@ -60,6 +60,7 @@ func main() {
 		catalogStore     store.CatalogStoreI
 		suggestionStore  store.SuggestionStoreI
 		oauth2StateStore store.OAuth2StateStoreI
+		toggleStore      store.ToggleStoreI
 	)
 
 	if cfg.LocalMode {
@@ -75,6 +76,7 @@ func main() {
 		catalogStore = sqstore.NewCatalogStore(sqlDB)
 		suggestionStore = sqstore.NewSuggestionStore(sqlDB)
 		oauth2StateStore = sqstore.NewOAuth2StateStore(sqlDB)
+		toggleStore = sqstore.NewToggleStore(sqlDB)
 	} else {
 		pool, err := store.NewPool(ctx, cfg.DBDSN)
 		if err != nil {
@@ -87,6 +89,7 @@ func main() {
 		catalogStore = store.NewCatalogStore(pool)
 		suggestionStore = store.NewSuggestionStore(pool)
 		oauth2StateStore = store.NewOAuth2StateStore(pool)
+		toggleStore = store.NewToggleStore(pool)
 	}
 
 	// Services
@@ -96,7 +99,8 @@ func main() {
 	// Handlers
 	authHandler := handler.NewAuthHandler(userStore, catalogStore, suggestionStore)
 	adminHandler := handler.NewAdminHandler(catalogSvc, catalogStore, userStore, kmsClient, cfg.LocalMode)
-	dashHandler := handler.NewDashboardHandler(userStore, upstreamStore, catalogStore, cfg.BaseURL, cfg.LocalMode)
+	dashHandler := handler.NewDashboardHandler(userStore, upstreamStore, catalogStore, toggleStore, cfg.BaseURL, cfg.LocalMode)
+	toggleHandler := handler.NewToggleHandler(upstreamStore, toggleStore)
 	suggestionHandler := handler.NewSuggestionHandler(suggestionStore)
 	upstreamHandler := handler.NewUpstreamHandler(upstreamStore, catalogStore, kmsClient)
 	oauth2Handler := handler.NewOAuth2Handler(oauth2Svc)
@@ -115,6 +119,7 @@ func main() {
 	sessionDeps := internalmcp.SessionDeps{
 		UpstreamStore: upstreamStore,
 		CatalogStore:  catalogStore,
+		ToggleStore:   toggleStore,
 		KMSDecrypt: func(ctx context.Context, ciphertext []byte) ([]byte, error) {
 			return kmsClient.Decrypt(ctx, ciphertext)
 		},
@@ -170,6 +175,10 @@ func main() {
 		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.UpdateCredentials)))
 	mux.Handle("GET /api/upstream/{id}/status",
 		handler.AuthMiddleware(http.HandlerFunc(upstreamHandler.GetStatus)))
+	mux.Handle("POST /api/upstreams/{id}/toggle",
+		handler.AuthMiddleware(http.HandlerFunc(toggleHandler.ToggleUpstreamHandler)))
+	mux.Handle("POST /api/catalog/{id}/toggle",
+		handler.AuthMiddleware(http.HandlerFunc(toggleHandler.ToggleCatalogHandler)))
 
 	// OAuth2 flows
 	mux.Handle("GET /api/oauth2/authorize/{server_type}",
