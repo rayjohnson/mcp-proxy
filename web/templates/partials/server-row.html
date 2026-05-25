@@ -1,22 +1,39 @@
 {{define "server-row"}}
-<tr id="server-row-{{.ID}}">
+<tr id="server-row-{{.ID}}" class="{{if not .Enabled}}server-disabled{{end}}">
   <td>{{.DisplayName}}</td>
   <td>
+    {{if not .IsCatalog}}
     <span class="status-badge status-{{.Status}}"
           hx-get="/api/upstream/{{.ID}}/status"
           hx-trigger="every 30s"
           hx-swap="outerHTML">
       {{.Status}}
     </span>
+    {{else}}
+    <span class="status-badge {{if .Enabled}}status-active{{else}}status-disabled{{end}}">
+      {{if .Enabled}}active{{else}}disabled{{end}}
+    </span>
+    {{end}}
   </td>
   <td>
-    {{if eq .Status "reauth_required"}}
-    <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Re-authorize</a>
+    {{if not .IsCatalog}}
+      {{if eq .Status "reauth_required"}}
+      <a href="/api/oauth2/authorize/{{.ServerType}}" class="button">Re-authorize</a>
+      {{end}}
+      <button class="{{if .Enabled}}secondary{{else}}button{{end}}"
+              onclick="toggleServer('{{if .IsCatalog}}catalog{{else}}upstreams{{end}}', '{{.ID}}', this)">
+        {{if .Enabled}}Disable{{else}}Enable{{end}}
+      </button>
+      <form method="POST" action="/api/upstream/{{.ID}}/disconnect" style="display:inline"
+            onsubmit="return confirm('Remove {{.DisplayName}}?')">
+        <button type="submit" class="danger">Remove</button>
+      </form>
+    {{else}}
+      <button class="{{if .Enabled}}secondary{{else}}button{{end}}"
+              onclick="toggleServer('catalog', '{{.ID}}', this)">
+        {{if .Enabled}}Disable{{else}}Enable{{end}}
+      </button>
     {{end}}
-    <form method="POST" action="/api/upstream/{{.ID}}/disconnect" style="display:inline"
-          onsubmit="return confirm('Remove {{.DisplayName}}?')">
-      <button type="submit" class="danger">Remove</button>
-    </form>
   </td>
 </tr>
 {{end}}

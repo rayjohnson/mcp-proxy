@@ -146,5 +146,33 @@ claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp
   {{if .LocalMode}}
   <script src="/static/js/ai-tools.js"></script>
   {{end}}
+  <script>
+  function toggleServer(kind, id, btn) {
+    fetch('/api/' + kind + '/' + id + '/toggle', {method: 'POST'})
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var row = document.getElementById('server-row-' + id);
+        if (data.enabled) {
+          row.classList.remove('server-disabled');
+          btn.textContent = 'Disable';
+          btn.className = 'secondary';
+          var badge = row.querySelector('.status-badge');
+          if (badge && badge.classList.contains('status-disabled')) {
+            badge.className = 'status-badge status-active';
+            badge.textContent = 'active';
+          }
+        } else {
+          row.classList.add('server-disabled');
+          btn.textContent = 'Enable';
+          btn.className = 'button';
+          var badge = row.querySelector('.status-badge');
+          if (badge && badge.classList.contains('status-active')) {
+            badge.className = 'status-badge status-disabled';
+            badge.textContent = 'disabled';
+          }
+        }
+      });
+  }
+  </script>
 </div>
 {{end}}

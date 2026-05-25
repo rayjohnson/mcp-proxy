@@ -97,6 +97,17 @@ th { background: #f1f3f5; font-weight: 600; }
 .status-unconfigured  { background: #fef3c7; color: #92400e; }
 .status-inactive      { background: #f3f4f6; color: #6b7280; }
 .status-error         { background: #fee2e2; color: #991b1b; }
+.status-disabled      { background: #f3f4f6; color: #9ca3af; }
+
+.server-disabled td { opacity: 0.5; }
+.server-disabled td:last-child { opacity: 1; }
+
+button.secondary {
+  background: #6c757d;
+}
+button.secondary:hover {
+  background: #5a6268;
+}
 
 .suggestion-card {
   background: #fff;

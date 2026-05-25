@@ -1,76 +1,113 @@
-# Implementation Plan: AI Tool Auto-Configuration
+# Implementation Plan: [FEATURE]
 
-**Branch**: `009-ai-tool-autoconfig` | **Date**: 2026-05-24 | **Spec**: [spec.md](spec.md)
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 
-**Input**: Feature specification from `specs/007-ai-tool-autoconfig/spec.md`
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-Add a dashboard section that detects installed AI tools (Claude Desktop, Gemini CLI), shows their MCP configuration status, and lets the user write the proxy endpoint into each tool's config in one click. Claude Desktop config is written via atomic JSON merge; Gemini CLI is configured via `gemini mcp add` subprocess. Local mode only.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Go 1.23 (existing project)
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Primary Dependencies**: Standard library only — `encoding/json`, `os`, `os/exec`; no new third-party packages required.
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
 
-**Storage**: No new storage. The proxy's own base URL (scheme + host + port) is the only dynamic value written to tool configs.
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 
-**Testing**: `go test ./...` (existing); new handler and aitools package unit tests.
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
-**Target Platform**: macOS (local mode only); gated by `cfg.LocalMode`.
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
 
-**Project Type**: Web service — new HTTP handler routes added to the existing `internal/handler` package.
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
 
-**Performance Goals**: Detection and status checks must complete in under 500ms on page load; `gemini mcp list` subprocess timeout 5s.
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
 
-**Constraints**: Config writes must be atomic (temp-file rename on macOS). Feature is local-mode-only (`cfg.LocalMode` gate). No new dependencies beyond stdlib.
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
 
-**Scale/Scope**: Two tools at launch (Claude Desktop, Gemini CLI). Additive per-tool structs make future tools easy to add.
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Simplicity First | PASS | stdlib only; no new abstractions beyond a small `aitools` package |
-| II. Dual-Deployment | PASS | Feature gated by `cfg.LocalMode`; no-op in hosted mode |
-| III. MCP Protocol Fidelity | PASS | No MCP session changes |
-| IV. Security by Design | PASS | Reads/writes only local config files the user already owns |
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-No violations. Complexity Tracking table not required.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/007-ai-tool-autoconfig/
-├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-│   └── api.md
-└── tasks.md             # Phase 2 output (/speckit-tasks)
+specs/[###-feature]/
+├── plan.md              # This file (/speckit-plan command output)
+├── research.md          # Phase 0 output (/speckit-plan command)
+├── data-model.md        # Phase 1 output (/speckit-plan command)
+├── quickstart.md        # Phase 1 output (/speckit-plan command)
+├── contracts/           # Phase 1 output (/speckit-plan command)
+└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
-### Source Code
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-internal/
-├── aitools/             # NEW — tool detection, config read/write
-│   ├── registry.go      # AITool interface + registry of supported tools
-│   ├── claude_desktop.go  # Claude Desktop detection + config writer
-│   └── gemini_cli.go    # Gemini CLI detection + config writer
-└── handler/
-    └── aitools.go       # NEW — HTTP handlers for GET /api/tools, POST /api/tools/{id}/configure
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-templates/
-└── partials/
-    └── ai-tools.html    # NEW — dashboard partial for the AI Tools section
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-static/
-└── js/
-    └── ai-tools.js      # NEW — fetch-based configure button logic
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: New `internal/aitools` package owns all tool-specific logic (detection, status, config mutation). The handler package adds a thin HTTP layer on top. The dashboard partial is wired into the existing dashboard template. This keeps tool-specific code isolated and testable without pulling in HTTP concerns.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
+
+## Complexity Tracking
+
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

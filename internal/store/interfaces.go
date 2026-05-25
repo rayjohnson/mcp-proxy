@@ -35,6 +35,16 @@ type UpstreamStoreI interface {
 	UpdateDetectedTransport(ctx context.Context, id, transport string) error
 	UpdateEncryptedCreds(ctx context.Context, id string, encryptedCreds []byte) error
 	DeleteUpstreamConfig(ctx context.Context, id string) error
+	// ToggleUpstream flips the enabled state and returns the new value.
+	ToggleUpstream(ctx context.Context, id string) (bool, error)
+}
+
+// ToggleStoreI manages per-user enable/disable state for catalog (stdio) entries.
+type ToggleStoreI interface {
+	// ToggleCatalogEntry flips the enabled state for the given user+catalog pair and returns the new value.
+	ToggleCatalogEntry(ctx context.Context, userID, catalogID string) (bool, error)
+	// DisabledCatalogIDs returns the set of catalog IDs explicitly disabled by the user.
+	DisabledCatalogIDs(ctx context.Context, userID string) (map[string]struct{}, error)
 }
 
 // OAuth2StateStoreI is the interface satisfied by both the Postgres and SQLite OAuth2 state stores.

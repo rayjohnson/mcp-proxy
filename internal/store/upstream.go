@@ -9,15 +9,16 @@ import (
 )
 
 type UpstreamConfig struct {
-	ID                 string
-	UserID             string
-	ServerType         string
-	ServerURL          string
-	AuthType           string
-	EncryptedCreds     []byte
-	DetectedTransport  *string
-	Status             string
-	StatusCheckedAt    *time.Time
+	ID                string
+	UserID            string
+	ServerType        string
+	ServerURL         string
+	AuthType          string
+	EncryptedCreds    []byte
+	DetectedTransport *string
+	Status            string
+	StatusCheckedAt   *time.Time
+	Enabled           bool
 }
 
 type UpstreamStore struct {
@@ -34,10 +35,10 @@ func (s *UpstreamStore) CreateUpstreamConfig(ctx context.Context, userID, server
 		INSERT INTO upstream_configs (user_id, server_type, server_url, auth_type, encrypted_creds)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, user_id, server_type, server_url, auth_type, encrypted_creds,
-		          detected_transport, status, status_checked_at`,
+		          detected_transport, status, status_checked_at, enabled`,
 		userID, serverType, serverURL, authType, encryptedCreds,
 	).Scan(&c.ID, &c.UserID, &c.ServerType, &c.ServerURL, &c.AuthType,
-		&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt)
+		&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt, &c.Enabled)
 	if err != nil {
 		return nil, fmt.Errorf("create upstream config: %w", err)
 	}
@@ -47,7 +48,7 @@ func (s *UpstreamStore) CreateUpstreamConfig(ctx context.Context, userID, server
 func (s *UpstreamStore) GetUpstreamConfigsByUserID(ctx context.Context, userID string) ([]*UpstreamConfig, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, user_id, server_type, server_url, auth_type, encrypted_creds,
-		       detected_transport, status, status_checked_at
+		       detected_transport, status, status_checked_at, enabled
 		FROM upstream_configs WHERE user_id = $1`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list upstream configs: %w", err)
@@ -58,7 +59,7 @@ func (s *UpstreamStore) GetUpstreamConfigsByUserID(ctx context.Context, userID s
 	for rows.Next() {
 		var c UpstreamConfig
 		if err := rows.Scan(&c.ID, &c.UserID, &c.ServerType, &c.ServerURL, &c.AuthType,
-			&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt); err != nil {
+			&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt, &c.Enabled); err != nil {
 			return nil, fmt.Errorf("scan upstream config: %w", err)
 		}
 		configs = append(configs, &c)
@@ -70,14 +71,28 @@ func (s *UpstreamStore) GetUpstreamConfigByID(ctx context.Context, id string) (*
 	var c UpstreamConfig
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, user_id, server_type, server_url, auth_type, encrypted_creds,
-		       detected_transport, status, status_checked_at
+		       detected_transport, status, status_checked_at, enabled
 		FROM upstream_configs WHERE id = $1`, id,
 	).Scan(&c.ID, &c.UserID, &c.ServerType, &c.ServerURL, &c.AuthType,
-		&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt)
+		&c.EncryptedCreds, &c.DetectedTransport, &c.Status, &c.StatusCheckedAt, &c.Enabled)
 	if err != nil {
 		return nil, fmt.Errorf("get upstream config: %w", err)
 	}
 	return &c, nil
+}
+
+func (s *UpstreamStore) ToggleUpstream(ctx context.Context, id string) (bool, error) {
+	var newEnabled bool
+	err := s.pool.QueryRow(ctx, `
+		UPDATE upstream_configs
+		SET enabled = NOT enabled, updated_at = now()
+		WHERE id = $1
+		RETURNING enabled`, id,
+	).Scan(&newEnabled)
+	if err != nil {
+		return false, fmt.Errorf("toggle upstream: %w", err)
+	}
+	return newEnabled, nil
 }
 
 func (s *UpstreamStore) UpdateUpstreamStatus(ctx context.Context, id, status string) error {
