@@ -9,15 +9,16 @@ import (
 )
 
 type UpstreamConfig struct {
-	ID                 string
-	UserID             string
-	ServerType         string
-	ServerURL          string
-	AuthType           string
-	EncryptedCreds     []byte
-	DetectedTransport  *string
-	Status             string
-	StatusCheckedAt    *time.Time
+	ID                string
+	UserID            string
+	ServerType        string
+	ServerURL         string
+	AuthType          string
+	EncryptedCreds    []byte
+	DetectedTransport *string
+	Status            string
+	StatusCheckedAt   *time.Time
+	Enabled           bool
 }
 
 type UpstreamStore struct {
