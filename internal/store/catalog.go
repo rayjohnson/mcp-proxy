@@ -143,8 +143,9 @@ func (s *CatalogStore) DeactivateCatalogEntry(ctx context.Context, id string) er
 	return err
 }
 
-func (s *CatalogStore) UpdateCatalogAuthType(ctx context.Context, id, authType string) error {
+func (s *CatalogStore) UpdateCatalogEntry(ctx context.Context, id, serverURL, authType, displayName string) error {
 	_, err := s.pool.Exec(ctx,
-		`UPDATE default_catalog SET auth_type=$1, updated_at=now() WHERE id=$2 AND active=true`, authType, id)
+		`UPDATE default_catalog SET server_url=$1, auth_type=$2, display_name=$3, updated_at=now() WHERE id=$4 AND active=true`,
+		serverURL, authType, displayName, id)
 	return err
 }

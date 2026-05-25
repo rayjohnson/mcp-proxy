@@ -36,6 +36,9 @@
               onclick="toggleServer('catalog', '{{.ID}}', this)">
         {{if .Enabled}}Disable{{else}}Enable{{end}}
       </button>
+      {{if .IsAdmin}}
+      <button class="danger" onclick="removeCatalogEntry('{{.ID}}', '{{.DisplayName}}')">Remove</button>
+      {{end}}
     {{end}}
   </td>
 </tr>

@@ -60,7 +60,7 @@
           <td id="catalog-auth-{{.ID}}">{{.AuthType}}</td>
           <td><a href="{{.ServerURL}}" target="_blank" rel="noopener">{{.ServerURL}}</a></td>
           <td>
-            <button class="secondary" onclick="editAuthType('{{.ID}}', '{{.AuthType}}')">Edit Auth</button>
+            <button class="secondary" onclick="editEntry('{{.ID}}', '{{.DisplayName}}', '{{.ServerURL}}', '{{.AuthType}}')">Edit</button>
             <form method="POST" action="/admin/catalog/{{.ID}}/remove" style="display:inline"
                   onsubmit="return confirm('Remove {{.DisplayName}} from catalog?')">
               <button type="submit" class="danger">Remove</button>
@@ -74,43 +74,55 @@
     <p>No servers in the catalog yet.</p>
     {{end}}
 
-  <!-- Edit auth type modal -->
-  <div id="edit-auth-modal" class="modal-overlay" onclick="if(event.target===this)closeAuthModal()">
+  <!-- Edit catalog entry modal -->
+  <div id="edit-catalog-modal" class="modal-overlay" onclick="if(event.target===this)closeEditCatalogModal()">
     <div class="modal-box">
-      <h3>Edit Auth Type</h3>
+      <h3>Edit Catalog Entry</h3>
+      <label>Display Name
+        <input type="text" id="edit-catalog-name" placeholder="Display name">
+      </label>
+      <label>Server URL
+        <input type="url" id="edit-catalog-url" placeholder="https://... (leave blank to keep current)">
+      </label>
       <label>Auth Type
-        <select id="edit-auth-select">
+        <select id="edit-catalog-auth">
           <option value="api_key">API Key</option>
           <option value="pat">PAT (Personal Access Token)</option>
           <option value="none">None (auto-connect)</option>
         </select>
       </label>
-      <p id="edit-auth-error" class="error" style="display:none"></p>
+      <p id="edit-catalog-error" class="error" style="display:none"></p>
       <div class="modal-actions">
-        <button onclick="saveAuthType()">Save</button>
-        <button class="secondary" onclick="closeAuthModal()">Cancel</button>
+        <button onclick="saveEditCatalog()">Save</button>
+        <button class="secondary" onclick="closeEditCatalogModal()">Cancel</button>
       </div>
     </div>
   </div>
   <script>
   var _editCatalogID = '';
-  function editAuthType(id, current) {
+  function editEntry(id, name, url, authType) {
     _editCatalogID = id;
-    document.getElementById('edit-auth-select').value = current;
-    document.getElementById('edit-auth-error').style.display = 'none';
-    document.getElementById('edit-auth-modal').classList.add('open');
+    document.getElementById('edit-catalog-name').value = name;
+    document.getElementById('edit-catalog-url').value = url;
+    document.getElementById('edit-catalog-auth').value = authType;
+    document.getElementById('edit-catalog-error').style.display = 'none';
+    document.getElementById('edit-catalog-modal').classList.add('open');
   }
-  function closeAuthModal() {
-    document.getElementById('edit-auth-modal').classList.remove('open');
+  function closeEditCatalogModal() {
+    document.getElementById('edit-catalog-modal').classList.remove('open');
   }
-  function saveAuthType() {
-    var authType = document.getElementById('edit-auth-select').value;
-    var errEl = document.getElementById('edit-auth-error');
+  function saveEditCatalog() {
+    var errEl = document.getElementById('edit-catalog-error');
     errEl.style.display = 'none';
+    var payload = {
+      display_name: document.getElementById('edit-catalog-name').value,
+      server_url:   document.getElementById('edit-catalog-url').value,
+      auth_type:    document.getElementById('edit-catalog-auth').value
+    };
     fetch('/api/admin/catalog/' + _editCatalogID, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({auth_type: authType})
+      body: JSON.stringify(payload)
     }).then(function(r) {
       return r.json().then(function(data) {
         if (!r.ok) {
@@ -118,7 +130,7 @@
           errEl.style.display = 'block';
         } else {
           document.getElementById('catalog-auth-' + _editCatalogID).textContent = data.auth_type;
-          closeAuthModal();
+          closeEditCatalogModal();
         }
       });
     }).catch(function() {
@@ -126,8 +138,8 @@
       errEl.style.display = 'block';
     });
   }
-  document.getElementById('edit-auth-modal').addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeAuthModal();
+  document.getElementById('edit-catalog-modal').addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEditCatalogModal();
   });
   </script>
   </section>
