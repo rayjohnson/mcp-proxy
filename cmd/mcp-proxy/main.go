@@ -224,7 +224,7 @@ func main() {
 	mux.Handle("DELETE /api/admin/catalog/{id}",
 		adminMW(http.HandlerFunc(adminHandler.RemoveCatalogEntryAPI)))
 	mux.Handle("PATCH /api/admin/catalog/{id}",
-		adminMW(http.HandlerFunc(adminHandler.UpdateCatalogAuthTypeAPI)))
+		adminMW(http.HandlerFunc(adminHandler.UpdateCatalogEntryAPI)))
 	mux.HandleFunc("GET /api/admin/mode", adminHandler.ModeHandler)
 	mux.Handle("GET /api/version/check",
 		adminMW(http.HandlerFunc(adminHandler.CheckVersionAPI)))

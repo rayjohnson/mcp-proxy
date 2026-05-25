@@ -344,35 +344,56 @@ func (h *AdminHandler) ModeHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"mode": mode})
 }
 
-// UpdateCatalogAuthTypeAPI handles PATCH /api/admin/catalog/{id}.
-func (h *AdminHandler) UpdateCatalogAuthTypeAPI(w http.ResponseWriter, r *http.Request) {
+// UpdateCatalogEntryAPI handles PATCH /api/admin/catalog/{id}.
+// Accepts auth_type, server_url, and display_name; any omitted field keeps its current value.
+func (h *AdminHandler) UpdateCatalogEntryAPI(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeJSONError(w, "missing catalog entry id", http.StatusBadRequest)
 		return
 	}
 	var req struct {
-		AuthType string `json:"auth_type"`
+		AuthType    string `json:"auth_type"`
+		ServerURL   string `json:"server_url"`
+		DisplayName string `json:"display_name"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeJSONError(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	validAuthTypes := map[string]bool{"api_key": true, "pat": true, "oauth2": true, "none": true}
-	if !validAuthTypes[req.AuthType] {
-		writeJSONError(w, "auth_type must be one of: api_key, pat, oauth2, none", http.StatusBadRequest)
+	entry, err := h.catalogStore.GetCatalogEntryByID(r.Context(), id)
+	if err != nil {
+		writeJSONError(w, "catalog entry not found", http.StatusNotFound)
 		return
 	}
-	if err := h.catalogStore.UpdateCatalogAuthType(r.Context(), id, req.AuthType); err != nil {
+	// Merge: keep current value for any field not provided.
+	authType := entry.AuthType
+	if req.AuthType != "" {
+		validAuthTypes := map[string]bool{"api_key": true, "pat": true, "oauth2": true, "none": true}
+		if !validAuthTypes[req.AuthType] {
+			writeJSONError(w, "auth_type must be one of: api_key, pat, oauth2, none", http.StatusBadRequest)
+			return
+		}
+		authType = req.AuthType
+	}
+	serverURL := entry.ServerURL
+	if req.ServerURL != "" {
+		serverURL = req.ServerURL
+	}
+	displayName := entry.DisplayName
+	if req.DisplayName != "" {
+		displayName = req.DisplayName
+	}
+	if err := h.catalogStore.UpdateCatalogEntry(r.Context(), id, serverURL, authType, displayName); err != nil {
 		writeJSONError(w, "failed to update catalog entry", http.StatusInternalServerError)
 		return
 	}
-	entry, err := h.catalogStore.GetCatalogEntryByID(r.Context(), id)
+	updated, err := h.catalogStore.GetCatalogEntryByID(r.Context(), id)
 	if err != nil {
 		writeJSONError(w, "failed to fetch updated entry", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, catalogEntryToResponse(entry))
+	writeJSON(w, http.StatusOK, catalogEntryToResponse(updated))
 }
 
 type versionCheckResponse struct {

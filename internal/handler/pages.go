@@ -115,6 +115,7 @@ type UpstreamView struct {
 	Enabled     bool
 	IsCatalog   bool   // true for stdio catalog entries (toggle via /api/catalog/)
 	AuthType    string // "api_key", "pat", "oauth2", or "none"
+	IsAdmin     bool   // propagated from session claims for template use
 }
 
 // DashboardData is passed to dashboard.html.
@@ -183,6 +184,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		disabledCatalog, _ = h.toggleStore.DisabledCatalogIDs(r.Context(), claims.UserID)
 	}
 
+	isAdmin := claims.Role == "admin"
 	connected := make([]UpstreamView, 0, len(upstreams))
 	for _, u := range upstreams {
 		name := nameByType[u.ServerType]
@@ -197,6 +199,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			Enabled:     u.Enabled,
 			IsCatalog:   false,
 			AuthType:    u.AuthType,
+			IsAdmin:     isAdmin,
 		})
 	}
 	// Stdio catalog entries are auto-connected for every session; show them as active.
@@ -210,6 +213,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 				Status:      "active",
 				Enabled:     !isDisabled,
 				IsCatalog:   true,
+				IsAdmin:     isAdmin,
 			})
 		}
 	}

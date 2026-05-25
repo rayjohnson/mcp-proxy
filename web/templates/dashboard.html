@@ -94,7 +94,7 @@
       <summary>Gemini CLI</summary>
       <div class="tool-auto-configure"></div>
       <p>Run once in your terminal:</p>
-      <pre><code>gemini mcp add mcp-proxy {{.ProxyURL}}</code></pre>
+      <pre><code>gemini mcp add --transport http mcp-proxy {{.ProxyURL}}</code></pre>
       <p>Or add manually to <code>~/.gemini/settings.json</code>:</p>
       <pre><code>{
   "mcpServers": {
@@ -241,6 +241,15 @@ claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp
     if (e.key === 'Enter') saveCredentials();
     if (e.key === 'Escape') closeEditModal();
   });
+  function removeCatalogEntry(id, name) {
+    if (!confirm('Remove "' + name + '" from the catalog? This affects all users.')) return;
+    fetch('/api/admin/catalog/' + id, {method: 'DELETE'})
+      .then(function(r) {
+        if (r.ok) { window.location.reload(); }
+        else { alert('Failed to remove catalog entry.'); }
+      })
+      .catch(function() { alert('Network error — could not remove.'); });
+  }
   </script>
 </div>
 {{end}}
