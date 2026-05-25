@@ -90,10 +90,13 @@ th { background: #f1f3f5; font-weight: 600; }
   font-size: 0.8rem;
   font-weight: 600;
 }
-.status-active       { background: #d1fae5; color: #065f46; }
-.status-unreachable  { background: #fee2e2; color: #991b1b; }
+.status-active        { background: #d1fae5; color: #065f46; }
+.status-unreachable   { background: #fee2e2; color: #991b1b; }
 .status-reauth_required { background: #fef3c7; color: #92400e; }
-.status-pending      { background: #e0e7ff; color: #3730a3; }
+.status-pending       { background: #e0e7ff; color: #3730a3; }
+.status-unconfigured  { background: #fef3c7; color: #92400e; }
+.status-inactive      { background: #f3f4f6; color: #6b7280; }
+.status-error         { background: #fee2e2; color: #991b1b; }
 
 .suggestion-card {
   background: #fff;
@@ -193,6 +196,17 @@ th { background: #f1f3f5; font-weight: 600; }
   font-size: inherit;
   word-break: normal;
 }
+
+.ai-tools-section { margin-bottom: 2rem; }
+
+.ai-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.ai-tool-name { font-weight: 600; flex: 1; min-width: 140px; }
 
 .mode-badge {
   display: inline-block;

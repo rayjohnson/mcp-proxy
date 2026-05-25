@@ -145,6 +145,6 @@ func (ps *ProxySession) Close() {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	for _, c := range ps.clients {
-		c.Session.Close() //nolint:errcheck,gosec
+		c.Session.Close() //nolint:errcheck
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/rayjohnson/mcp-proxy/internal/aitools"
 	"github.com/rayjohnson/mcp-proxy/internal/catalog"
 	"github.com/rayjohnson/mcp-proxy/internal/config"
 	"github.com/rayjohnson/mcp-proxy/internal/handler"
@@ -97,6 +98,15 @@ func main() {
 	suggestionHandler := handler.NewSuggestionHandler(suggestionStore)
 	upstreamHandler := handler.NewUpstreamHandler(upstreamStore, catalogStore, kmsClient)
 	oauth2Handler := handler.NewOAuth2Handler(oauth2Svc)
+	aiToolsHandler := handler.NewAIToolsHandler(
+		[]aitools.Configurer{
+			&aitools.ClaudeDesktopTool{},
+			&aitools.GeminiCLITool{},
+		},
+		userStore,
+		cfg.BaseURL,
+		cfg.LocalMode,
+	)
 
 	// MCP proxy
 	sessionDeps := internalmcp.SessionDeps{
@@ -170,6 +180,12 @@ func main() {
 		handler.AuthMiddleware(http.HandlerFunc(suggestionHandler.DismissSuggestion)))
 	mux.Handle("POST /api/suggestions/{id}/accept",
 		handler.AuthMiddleware(http.HandlerFunc(suggestionHandler.AcceptSuggestion)))
+
+	// AI tool auto-configuration (local mode only)
+	mux.Handle("GET /api/tools",
+		handler.AuthMiddleware(http.HandlerFunc(aiToolsHandler.StatusAPI)))
+	mux.Handle("POST /api/tools/{id}/configure",
+		handler.AuthMiddleware(http.HandlerFunc(aiToolsHandler.ConfigureAPI)))
 
 	// Admin pages and API (admin role required)
 	adminMW := func(h http.Handler) http.Handler {

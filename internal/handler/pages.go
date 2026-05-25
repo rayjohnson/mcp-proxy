@@ -151,15 +151,16 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 
 	var available []CatalogCard
 	for _, e := range catalogEntries {
-		if !connectedTypes[e.ServerType] {
-			available = append(available, CatalogCard{
-				ID:          e.ID,
-				ServerType:  e.ServerType,
-				DisplayName: e.DisplayName,
-				Description: e.Description,
-				AuthType:    e.AuthType,
-			})
+		if e.Transport == "stdio" || connectedTypes[e.ServerType] {
+			continue
 		}
+		available = append(available, CatalogCard{
+			ID:          e.ID,
+			ServerType:  e.ServerType,
+			DisplayName: e.DisplayName,
+			Description: e.Description,
+			AuthType:    e.AuthType,
+		})
 	}
 
 	connected := make([]UpstreamView, 0, len(upstreams))
@@ -174,6 +175,17 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			DisplayName: name,
 			Status:      u.Status,
 		})
+	}
+	// Stdio catalog entries are auto-connected for every session; show them as active.
+	for _, e := range catalogEntries {
+		if e.Transport == "stdio" {
+			connected = append(connected, UpstreamView{
+				ID:          e.ID,
+				ServerType:  e.ServerType,
+				DisplayName: e.DisplayName,
+				Status:      "active",
+			})
+		}
 	}
 
 	renderTemplate(w, "dashboard.html", DashboardData{
