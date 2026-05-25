@@ -25,7 +25,7 @@ endif
 build:
 	go build -ldflags "-X main.version=$(BUILD_VERSION)" -o $(BIN) ./cmd/mcp-proxy
 
-COVER_THRESHOLD := 13
+COVER_THRESHOLD := 20
 
 .PHONY: test
 test:

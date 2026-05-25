@@ -54,16 +54,13 @@
   </section>
   {{end}}
 
-  {{if .LocalMode}}
-  {{template "ai-tools" .}}
-  {{end}}
-
   <section class="setup-guide">
-    <h2>Manual Setup</h2>
+    <h2>Connect AI Tools</h2>
     <p class="hint">Paste your proxy URL into any MCP-compatible AI tool. You'll only see tools from servers you've connected above.</p>
 
-    <details class="client-setup">
+    <details class="client-setup" data-tool-id="claude-code">
       <summary>Claude Code (CLI)</summary>
+      <div class="tool-auto-configure"></div>
       <p>Run once in your terminal:</p>
       <pre><code>claude mcp add --transport http mcp-proxy {{.ProxyURL}}</code></pre>
       <p>Or add manually to <code>~/.claude.json</code>:</p>
@@ -77,16 +74,32 @@
 }</code></pre>
     </details>
 
-    <details class="client-setup">
+    <details class="client-setup" data-tool-id="claude-desktop">
       <summary>Claude Desktop</summary>
+      <div class="tool-auto-configure"></div>
       <p>Edit your config file and restart Claude Desktop:</p>
       <p><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>
          <strong>Windows:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></p>
       <pre><code>{
   "mcpServers": {
     "mcp-proxy": {
-      "type": "http",
-      "url": "{{.ProxyURL}}"
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "{{.ProxyURL}}", "--allow-http"]
+    }
+  }
+}</code></pre>
+    </details>
+
+    <details class="client-setup" data-tool-id="gemini-cli">
+      <summary>Gemini CLI</summary>
+      <div class="tool-auto-configure"></div>
+      <p>Run once in your terminal:</p>
+      <pre><code>gemini mcp add mcp-proxy {{.ProxyURL}}</code></pre>
+      <p>Or add manually to <code>~/.gemini/settings.json</code>:</p>
+      <pre><code>{
+  "mcpServers": {
+    "mcp-proxy": {
+      "httpUrl": "{{.ProxyURL}}"
     }
   }
 }</code></pre>
@@ -143,6 +156,22 @@ claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp
     {{end}}
   </section>
 
+  <!-- Edit credentials modal (issue #21) -->
+  <div id="edit-creds-modal" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
+    <div class="modal-box">
+      <h3>Update API Key</h3>
+      <p id="edit-creds-name"></p>
+      <label>New API Key
+        <input type="password" id="edit-creds-input" placeholder="Paste new API key" autocomplete="off">
+      </label>
+      <p id="edit-creds-error" class="error" style="display:none"></p>
+      <div class="modal-actions">
+        <button onclick="saveCredentials()">Save</button>
+        <button class="secondary" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   {{if .LocalMode}}
   <script src="/static/js/ai-tools.js"></script>
   {{end}}
@@ -173,6 +202,45 @@ claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp
         }
       });
   }
+
+  var _editUpstreamID = '';
+  function editCredentials(id, name) {
+    _editUpstreamID = id;
+    document.getElementById('edit-creds-name').textContent = name;
+    document.getElementById('edit-creds-input').value = '';
+    document.getElementById('edit-creds-error').style.display = 'none';
+    document.getElementById('edit-creds-modal').classList.add('open');
+    document.getElementById('edit-creds-input').focus();
+  }
+  function closeEditModal() {
+    document.getElementById('edit-creds-modal').classList.remove('open');
+  }
+  function saveCredentials() {
+    var key = document.getElementById('edit-creds-input').value.trim();
+    if (!key) { return; }
+    var errEl = document.getElementById('edit-creds-error');
+    errEl.style.display = 'none';
+    fetch('/api/upstream/' + _editUpstreamID + '/credentials', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: key})
+    }).then(function(r) {
+      if (r.ok) {
+        closeEditModal();
+        window.location.reload();
+      } else {
+        errEl.textContent = 'Failed to update credentials.';
+        errEl.style.display = 'block';
+      }
+    }).catch(function() {
+      errEl.textContent = 'Network error — please try again.';
+      errEl.style.display = 'block';
+    });
+  }
+  document.getElementById('edit-creds-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') saveCredentials();
+    if (e.key === 'Escape') closeEditModal();
+  });
   </script>
 </div>
 {{end}}

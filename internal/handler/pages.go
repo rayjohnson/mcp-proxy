@@ -110,7 +110,8 @@ type UpstreamView struct {
 	DisplayName string
 	Status      string
 	Enabled     bool
-	IsCatalog   bool // true for stdio catalog entries (toggle via /api/catalog/)
+	IsCatalog   bool   // true for stdio catalog entries (toggle via /api/catalog/)
+	AuthType    string // "api_key", "pat", "oauth2", or "none"
 }
 
 // DashboardData is passed to dashboard.html.
@@ -192,6 +193,7 @@ func (h *DashboardHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 			Status:      u.Status,
 			Enabled:     u.Enabled,
 			IsCatalog:   false,
+			AuthType:    u.AuthType,
 		})
 	}
 	// Stdio catalog entries are auto-connected for every session; show them as active.
