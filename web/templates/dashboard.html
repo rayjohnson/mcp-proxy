@@ -54,8 +54,12 @@
   </section>
   {{end}}
 
+  {{if .LocalMode}}
+  {{template "ai-tools" .}}
+  {{end}}
+
   <section class="setup-guide">
-    <h2>Connect Your AI Tools</h2>
+    <h2>Manual Setup</h2>
     <p class="hint">Paste your proxy URL into any MCP-compatible AI tool. You'll only see tools from servers you've connected above.</p>
 
     <details class="client-setup">
@@ -138,5 +142,9 @@ claude mcp add --transport http mcp-proxy-company https://YOUR_COMPANY_PROXY/mcp
     </details>
     {{end}}
   </section>
+
+  {{if .LocalMode}}
+  <script src="/static/js/ai-tools.js"></script>
+  {{end}}
 </div>
 {{end}}

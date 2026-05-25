@@ -25,9 +25,22 @@ endif
 build:
 	go build -ldflags "-X main.version=$(BUILD_VERSION)" -o $(BIN) ./cmd/mcp-proxy
 
+COVER_THRESHOLD := 13
+
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: cover
+cover:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+	@pct=$$(go tool cover -func=coverage.out | awk '/^total:/ { gsub(/%/, "", $$3); print $$3 }'); \
+	  if awk "BEGIN { exit !($${pct} < $(COVER_THRESHOLD)) }"; then \
+	    echo "FAIL: coverage $${pct}% is below threshold $(COVER_THRESHOLD)%"; exit 1; \
+	  else \
+	    echo "OK: coverage $${pct}% meets threshold $(COVER_THRESHOLD)%"; \
+	  fi
 
 .PHONY: test-integration
 test-integration: check-docker db-up

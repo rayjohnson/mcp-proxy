@@ -4,7 +4,11 @@ linters:
   enable:
     - gosec
     - modernize
+    - nolintlint
   settings:
     gosec:
       excludes:
         - G104  # Errors unhandled — covered by errcheck
+    nolintlint:
+      require-specific: true   # every //nolint must name the linter(s)
+      allow-unused: false      # flag directives that suppress nothing
